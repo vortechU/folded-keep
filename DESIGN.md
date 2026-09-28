@@ -69,8 +69,10 @@ hits whatever lies underneath. Your castle layout *is* your arsenal.
 ## Tech
 - **Godot 4.7.2**, **GL Compatibility** renderer (required for web), web export **without threads**
   (no SharedArrayBuffer needed on itch).
-- **Resolution:** base viewport **360×640**, window **720×1280**, stretch mode `viewport`, aspect `keep`,
-  default texture filter **Nearest** (pixel art). Everything below is in base (360×640) pixels.
+- **Resolution:** base viewport **360×640**, stretch mode `canvas_items`, aspect `keep`, default
+  texture filter **Linear** (painted art, see ART_BRIEF.md). The map SubViewport renders at
+  `main.gd` `RENDER_SCALE` (2×, i.e. 720×1280) with World scaled up, so gameplay code still works in
+  base (360×640) coordinates. Everything below is in base pixels.
 - **Input:** handle **mouse events only**. `emulate_mouse_from_touch` is on, so touch works too.
   Optional two-finger extras go in the `InputEventScreenTouch` handlers.
 
@@ -87,7 +89,7 @@ Main (Node2D)                      scenes/main.tscn, scripts/main.gd
 ├─ Fx (Node2D, added at runtime)  ← scripts/fx/fx.gd: dust, droplets, rings, popups above the folded map
 └─ UI (CanvasLayer)               ← HUD, build menu, screens
 ```
-- **Coordinates:** map space = SubViewport pixels = base-viewport pixels (the map sits at the origin).
+- **Coordinates:** map space (World-local) = base-viewport pixels (the map sits at the origin).
 - **Fold math** (`scripts/fold/fold_math.gd`): line point `M = (G+P)/2`, normal `n = normalize(G-P)`,
   flap = `dot(x-M, n) > 0`, `mirror(x) = x - 2·dot(x-M, n)·n`.
 
@@ -110,7 +112,7 @@ Main (Node2D)                      scenes/main.tscn, scripts/main.gd
 | `scripts/fx/`, `scripts/tests/`, `scenes/tests/` | Claude | Call the Fx API freely; ask before editing |
 | `scripts/main.gd`, `scripts/units/`, `scripts/buildings/` | Claude (v0.1), then open | Coordinate via TASKS.md |
 | `scenes/ui/`, `scripts/ui/`, `scripts/autoload/audio.gd` | **Helper agent** (Antigravity, after prototype lock) | |
-| `assets/` | **Human** (PixelLab / AutoSprite / Suno / fish.audio) | Agents only read |
+| `assets/` | **Human** (ChatGPT images / Suno / fish.audio) | Agents only read |
 
 ## Asset conventions
 - `assets/sprites/{units,buildings,terrain,fx,ui}/`, `assets/audio/{music,sfx,voice}/`

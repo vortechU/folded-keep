@@ -6,6 +6,9 @@ const UnitScript := preload("res://scripts/units/unit.gd")
 const BuildingScript := preload("res://scripts/buildings/building.gd")
 
 enum Phase { BUILD, WAVE, OVER }
+## The map is rendered at this multiple of its 360x640 logical size, so painted art stays sharp.
+## Gameplay coordinates are unaffected.
+const RENDER_SCALE := 2
 
 @onready var map_viewport: SubViewport = $MapViewport
 @onready var paper: Paper = $MapViewport/World/Paper
@@ -30,6 +33,9 @@ var _autotest := false
 
 func _ready() -> void:
 	Engine.time_scale = 1.0
+	map_viewport.size = Vector2i(Paper.SIZE * RENDER_SCALE)
+	$MapViewport/World.scale = Vector2.ONE * RENDER_SCALE
+	display.scale = Vector2.ONE / RENDER_SCALE
 	display.texture = map_viewport.get_texture()
 	fold.setup(display)
 	fold.slammed.connect(_on_slammed)

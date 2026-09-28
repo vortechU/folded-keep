@@ -155,7 +155,7 @@ func _add(p: Dictionary) -> void:
 func _draw() -> void:
 	for p in _parts:
 		var k: float = p.t / p.life
-		var pos: Vector2 = p.pos.round()
+		var pos: Vector2 = p.pos
 		var col: Color = p.color
 		match p.kind:
 			Kind.PUFF:
@@ -164,7 +164,7 @@ func _draw() -> void:
 			Kind.DROP:
 				var z: float = p.z
 				draw_circle(pos, p.r, Color(0, 0, 0, 0.18))
-				draw_circle((p.pos - Vector2(0, z)).round(), p.r, col)
+				draw_circle(p.pos - Vector2(0, z), p.r, col)
 			Kind.RING:
 				var r: float = p.r * (0.3 + 0.7 * (1.0 - pow(1.0 - k, 3.0)))
 				draw_arc(pos, r, 0.0, TAU, 24, Color(col, 1.0 - k), 2.0 * (1.0 - k) + 0.5)

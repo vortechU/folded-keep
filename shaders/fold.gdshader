@@ -44,7 +44,7 @@ vec3 front(vec3 c, vec2 p) {
 }
 
 void fragment() {
-	vec2 p = floor(UV * map_size) + 0.5;
+	vec2 p = UV * map_size;
 	vec3 col = front(texture(TEXTURE, p / map_size).rgb, p);
 	if (fold_active) {
 		float d = dot(p - fold_point, fold_normal);

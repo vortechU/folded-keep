@@ -212,7 +212,7 @@ func _update_preview() -> void:
 func _draw() -> void:
 	var pulse := 0.5 + 0.5 * sin(_pulse * 12.0)
 	for e in _preview:
-		var p: Vector2 = e.pos.round()
+		var p: Vector2 = e.pos
 		match e.outcome:
 			Outcome.CRUSH:
 				var c := Palette.RED.lerp(Color.WHITE, pulse * 0.3)
@@ -222,7 +222,7 @@ func _draw() -> void:
 			Outcome.SLAP:
 				draw_arc(p, 7.0, 0.0, TAU, 12, Palette.GOLD, 1.0)
 			Outcome.FLIP:
-				var t: Vector2 = e.target.round()
+				var t: Vector2 = e.target
 				draw_dashed_line(p, t, Palette.BLUE_LIGHT, 1.0, 3.0)
 				draw_arc(t, 4.0, 0.0, TAU, 10, Palette.BLUE_LIGHT, 1.0)
 
