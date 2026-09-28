@@ -23,6 +23,9 @@ signal decree_offered(ids: Array) # gameplay -> UI: show these cards, pick one
 signal decree_chosen(id: String) # UI -> gameplay
 # a new enemy kind appears for the first time this run (UI may show an intro card)
 signal enemy_introduced(kind: String)
+# Duel of Champions (scripts/duel/duel.gd): the map is frozen (tree paused) in between
+signal duel_started(boss: String) # "warlord" or "driver"
+signal duel_finished(won: bool)
 
 # UI -> gameplay requests
 signal build_requested(kind: String)

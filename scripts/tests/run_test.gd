@@ -1,13 +1,14 @@
 extends Node
 ## Fast-forwards a whole 12-wave run: starts every wave, kills enemies as they step onto the map,
 ## picks the first decree each time (through the decree UI) and checks both bosses show up.
+## Duels are skipped: lost vs the Warlord (so he walks the map), won vs the Ram's driver (1 crush left).
 ## Run: Godot.exe --path . res://scenes/tests/run_test.tscn -- --autotest-run=<dir>
 
 const SPEED := 6.0
 
 var _dir := ""
 var _main: Node
-var _log := {"waves": 0, "bosses": [], "decrees": 0, "intros": [], "result": ""}
+var _log := {"waves": 0, "bosses": [], "decrees": 0, "intros": [], "duels": [], "result": ""}
 var _boss_seen := {}
 
 
@@ -24,6 +25,9 @@ func _ready() -> void:
 			_log.result = p)
 	Events.decree_offered.connect(func(_ids: Array): _pick_decree.call_deferred())
 	Events.enemy_introduced.connect(func(k: String): _log.intros.append(k))
+	Events.duel_started.connect(func(b: String):
+		_log.duels.append(b)
+		(func(): get_tree().get_first_node_in_group("duel").resolve(b == "driver")).call_deferred())
 	_run()
 
 
@@ -44,7 +48,7 @@ func _run() -> void:
 				continue # let it walk into view for the screenshot
 			if u.is_boss() and not _boss_seen.has(u.kind):
 				_boss_seen[u.kind] = true
-				_log.bosses.append("%s@wave%d" % [u.kind, _main.wave + 1])
+				_log.bosses.append("%s@wave%d(%d crushes)" % [u.kind, _main.wave + 1, u.crushes_to_kill])
 				Engine.time_scale = 1.0
 				await _wait(0.4)
 				await _shot("80_boss_%s" % u.kind)
@@ -56,8 +60,8 @@ func _run() -> void:
 	Engine.time_scale = 1.0
 	await _wait(0.5)
 	await _shot("81_end")
-	print("RUN result=%s waves=%d/%d bosses=%s decrees=%d keep=%d intros=%s" % [_log.result, _log.waves,
-		Waves.LIST.size(), _log.bosses, _log.decrees, _main.keep_hp, _log.intros])
+	print("RUN result=%s waves=%d/%d duels=%s bosses=%s decrees=%d keep=%d intros=%s" % [_log.result, _log.waves,
+		Waves.LIST.size(), _log.duels, _log.bosses, _log.decrees, _main.keep_hp, _log.intros])
 	get_tree().quit()
 
 

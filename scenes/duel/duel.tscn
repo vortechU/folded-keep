@@ -1,0 +1,6 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/duel/duel.gd" id="1"]
+
+[node name="Duel" type="CanvasLayer"]
+script = ExtResource("1")

@@ -4,6 +4,11 @@ extends Node2D
 
 const UnitScript := preload("res://scripts/units/unit.gd")
 const BuildingScript := preload("res://scripts/buildings/building.gd")
+const DuelScene := preload("res://scenes/duel/duel.tscn")
+## Ink for beating the Iron Warlord in his duel.
+const DUEL_REWARD := 12
+## Keep damage when the Champion loses a duel (never drops the Keep below 1).
+const DUEL_LOSS_DAMAGE := 2
 
 enum Phase { BUILD, WAVE, OVER }
 ## The map is rendered at this multiple of its 360x640 logical size, so painted art stays sharp.
@@ -32,6 +37,7 @@ var _shake := 0.0
 var _origin := Vector2.ZERO ## where the map sits on screen (centered; the table fills the rest)
 var _autotest := false
 var _introduced := {} ## enemy kinds seen this run
+var _dueling := false
 
 
 func _ready() -> void:
@@ -217,6 +223,38 @@ func _spawn_enemy(kind: String) -> Unit:
 	return u
 
 
+## Duel of Champions: the map freezes while the Champion fights the boss (or its driver).
+## Win: the Warlord is defeated outright / the Ram enters with one crush left.
+## Lose: the boss enters at full strength and the Keep takes DUEL_LOSS_DAMAGE.
+func _duel(kind: String) -> void:
+	_dueling = true
+	var duel: Duel = DuelScene.instantiate()
+	duel.boss = "driver" if kind == "ram" else kind
+	add_child(duel)
+	get_tree().paused = true
+	var won: bool = await duel.finished
+	get_tree().paused = false
+	_dueling = false
+	if phase == Phase.OVER:
+		return
+	if kind == "warlord" and won:
+		kills += 1
+		_set_ink(ink + DUEL_REWARD)
+		_shake = 8.0
+		Events.banner.emit("THE WARLORD FALLS!\n+%d INK" % DUEL_REWARD)
+		_check_wave_end.call_deferred()
+		return
+	var b := _spawn_enemy(kind)
+	if won:
+		b.crushes_to_kill = 1
+		Events.banner.emit("THE RAM LIMPS IN!\nONE CRUSH LEFT")
+	else:
+		keep_hp = maxi(1, keep_hp - DUEL_LOSS_DAMAGE)
+		_shake = 6.0
+		Events.keep_hit.emit()
+		Events.keep_hp_changed.emit(keep_hp, keep_max_hp())
+
+
 ## Each barracks keeps its squad of knights topped up during waves.
 func _update_barracks(delta: float) -> void:
 	for b in get_tree().get_nodes_in_group("building"):
@@ -296,11 +334,16 @@ func _set_ink(v: int) -> void:
 # --- frame ----------------------------------------------------------------------------
 
 func _process(delta: float) -> void:
-	if phase == Phase.WAVE and not _queue.is_empty() and not _autotest:
+	if phase == Phase.WAVE and not _queue.is_empty() and not _autotest and not _dueling:
 		_spawn_timer -= delta
-		if _spawn_timer <= 0.0:
+		# a boss waits for the player to finish the fold in hand, then calls a duel
+		if _spawn_timer <= 0.0 and not (Waves.BOSSES.has(_queue[0]) and fold.state != FoldController.State.IDLE):
 			_spawn_timer = Waves.LIST[wave].interval
-			_spawn_enemy(_queue.pop_front())
+			var kind: String = _queue.pop_front()
+			if Waves.BOSSES.has(kind):
+				_duel(kind)
+			else:
+				_spawn_enemy(kind)
 	if phase == Phase.WAVE:
 		_update_barracks(delta)
 	if _shake > 0.0:

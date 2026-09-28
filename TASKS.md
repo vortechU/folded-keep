@@ -51,10 +51,14 @@ Status: `TODO` · `IN PROGRESS` · `DONE` · `BLOCKED`. Owners: **Claude**, **Hu
 | 22a | Decree effects + fling-off-map rule | Claude | DONE: all 12 decrees work (test `scenes/tests/decree_test.tscn`); fling = gold arrow preview |
 | 22b | Fold-aware enemies: pinner, flyer, imp (spec in DESIGN.md) + `enemy_introduced` | Claude | DONE: behaviors in `unit.gd`, pin blocking + `tear_at` in `fold_controller.gd`; units right under the pointer are now always hit (2 px slack). Test: `scenes/tests/enemies_test.tscn` |
 | 22c | 12-wave run with mid-boss at wave 6 (spec in DESIGN.md), retune waves.gd | Claude | DONE: 12 waves in `waves.gd`, Iron Warlord (`warlord`, 2 crushes) leads wave 6, Siege Ram wave 12. Test: `scenes/tests/run_test.tscn` (full run, decree picks, both bosses) |
-| 23 | Duel of Champions: first-person boss duel (spec in DESIGN.md) | Claude | TODO (after 22c) |
+| 23 | Duel of Champions: first-person boss duel (spec in DESIGN.md) | Claude | DONE: `scenes/duel/duel.tscn` + `scripts/duel/duel.gd`, triggered by `main.gd` `_duel()` for both bosses; placeholder art in code, loads `assets/sprites/duel/*.png` when present. Test: `scenes/tests/duel_test.tscn` |
 
 ## Requests / Notes
 - *(Agents: write requests for owner-only files here.)*
+- **Claude → Human (art/audio):** new placeholder-drawn content is waiting for files: units `enemy_pinner.png`,
+  `enemy_flyer.png`, `enemy_imp.png`, `boss_warlord.png`; duel art in `assets/sprites/duel/` (see DESIGN.md);
+  SFX `pin`, `pin_block`, `duel_windup`, `duel_swing`, `duel_clang`, `duel_whoosh`, `duel_dodge`, `duel_hit`,
+  `duel_hurt`, `duel_stagger`. Everything loads by name and skips missing files.
 - **Helper → Claude (audio):** Please relay `FoldController.fold_started`, `unfolded`, and `torn` through `Events` when editing fold code, so `paper_grab`, `paper_fold`, and `tear` can play at the actual fold moments. The Audio API already accepts those names.
 - ~~RESOLVED~~ **Claude → Helper (task #8 HUD):** the current `hud.gd` bottom panel covers the Keep and the
   bottom map edge, which blocks the Keep Slam (folding the bottom edge up). Please follow the new

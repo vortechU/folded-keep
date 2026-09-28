@@ -98,7 +98,7 @@ and knights. SFX names: `pin`, `pin_block`. Test: `scenes/tests/enemies_test.tsc
 brute 4, pinner 3, flyer 4, imp 5...). As built: `Waves.LIST`, bosses + their banners in `Waves.BOSSES`
 (the boss enters 5th in its wave's queue). Test: `scenes/tests/run_test.tscn` fast-forwards a whole run.
 
-### Duel of Champions (planned, task #23) — first-person boss duel
+### Duel of Champions (done, task #23) — first-person boss duel
 When a boss arrives the map freezes and a full-screen **first-person** duel starts (portrait):
 the boss towers in the center facing you; the Champion's gauntlet+sword (right) and shield (left)
 sit at the bottom of the screen. Painted-page look, background `duel_bg.png`.
@@ -118,6 +118,14 @@ sit at the bottom of the screen. Painted-page look, background `duel_bg.png`.
   the map is frozen (the duel scene can pause the tree and use `process_mode ALWAYS`).
 - Suggested files: `scenes/duel/duel.tscn`, `scripts/duel/duel.gd` (Claude-owned). Trigger from
   `main.gd` when a boss spawns; `Events.duel_started(boss)` / `Events.duel_finished(won)`.
+- **As built:** `main.gd` `_duel(kind)` runs when a boss is popped from the spawn queue (waits for
+  any fold in hand to finish), pauses the tree and awaits `Duel.finished`. Tuning in `Duel.BOSSES`
+  (stagger 100/120, tell time, fake-out chance 0/40% from round 3) and the constants at the top of
+  `duel.gd` (3 Champion hearts, 1.6 s strike window, 5 per tap, 8 for a correct read). The first 2
+  rounds show the answer arrow. Warlord win = +12 ink (`main.DUEL_REWARD`); loss = Keep −2 (never
+  below 1). `Duel.resolve(won)` ends a duel instantly (tests). SFX names: `duel_windup`, `duel_swing`,
+  `duel_clang`, `duel_whoosh`, `duel_dodge`, `duel_hit`, `duel_hurt`, `duel_stagger`.
+  Test: `scenes/tests/duel_test.tscn` (real mouse swipes/taps/fold, one win and one loss).
 
 ## Tech
 - **Godot 4.7.2**, **GL Compatibility** renderer (required for web), web export **without threads**
