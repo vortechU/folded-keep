@@ -41,12 +41,19 @@ hits whatever lies underneath. Your castle layout *is* your arsenal.
    Reaching the Keep damages it. Keep HP 0 = defeat.
 7. **Build phase** between waves: spend **Ink** (earned from kills) to stamp buildings on
    non-road paper.
-8. **Waves:** 6 waves, then a boss. Survive all of them = victory. Endless mode is a stretch goal.
+8. **Waves:** 6 waves, then a 7th boss wave. Survive all of them = victory. Endless mode is a stretch goal.
+
+### HUD layout rules (the map is the whole screen, so UI must not block folding)
+- The map's **edges are the controls**. During a wave, no UI may block input within 28 px of any
+  edge (use `mouse_filter = IGNORE` on anything overlapping the edges).
+- **Never cover the Keep** (x 140–220, y 545–625), and keep the bottom edge grabbable for the Keep Slam.
+- Top bar: at most 22 px tall, input-transparent. The build bar exists only in the build phase.
+- Banners must be input-transparent and must not dim the map during waves.
 
 ### Buildings (blue ink, player)
 | Building | Heavy? | Role |
 |---|---|---|
-| Keep | yes | Your castle. Fold the bottom edge up for a **Keep Slam** (huge area). Candidate cost: 1 Keep HP. |
+| Keep | yes | Your castle. Fold the bottom edge up for a **Keep Slam** (huge area). Costs 1 Keep HP during a wave, never drops you below 1. |
 | Tower | yes | The basic hammer. Cheap. |
 | Wall | yes | Heavy *and* blocks the road. Enemies stop to bash it. |
 | Barracks | no | Spawns blue knights that fight enemies. Knights are vulnerable to your own folds. |
@@ -57,7 +64,7 @@ hits whatever lies underneath. Your castle layout *is* your arsenal.
 | Grunt | Walks the road. 1 slap stuns, any crush kills. |
 | Runner | Fast, fragile. Dies from a slap too. |
 | Brute | Slow. Slaps do nothing; only a crush kills. |
-| Boss: Siege Ram | Needs 3 crushes. Cracks the Keep on arrival. |
+| Boss: Siege Ram | Wave 7 (final). Needs 3 crushes, ignores slaps, breaks walls in one hit, deals 5 Keep damage. Flipping it throws it back up the road. |
 
 ## Tech
 - **Godot 4.7.2**, **GL Compatibility** renderer (required for web), web export **without threads**

@@ -13,6 +13,8 @@ signal slammed(crushes: int)
 signal unit_crushed(unit: Node)
 signal building_placed(kind: String, pos: Vector2)
 signal keep_hit
+signal keep_slammed
+signal boss_spawned
 
 # UI -> gameplay requests
 signal build_requested(kind: String)

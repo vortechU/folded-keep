@@ -13,6 +13,7 @@ const KINDS := {
 	"runner": {"speed": 30.0, "slaps": 1, "slap_immune": false, "size": 0.85},
 	"brute": {"speed": 9.0, "slaps": 99, "slap_immune": true, "size": 1.5},
 	"knight": {"speed": 18.0, "slaps": 2, "slap_immune": false, "size": 1.0},
+	"ram": {"speed": 7.0, "slaps": 99, "slap_immune": true, "size": 2.2, "crushes": 3},
 }
 const ATTACK_INTERVAL := 1.0
 
@@ -21,6 +22,7 @@ const ATTACK_INTERVAL := 1.0
 @export var speed := 16.0
 @export var slaps_to_kill := 2
 @export var slap_immune := false
+@export var crushes_to_kill := 1
 
 var path: PackedVector2Array = []
 var path_index := 0
@@ -39,7 +41,13 @@ func setup(unit_kind: String) -> void:
 	speed = k.speed * randf_range(0.9, 1.1)
 	slaps_to_kill = k.slaps
 	slap_immune = k.slap_immune
+	crushes_to_kill = k.get("crushes", 1)
 	_size = k.size
+
+
+## How far from its center a unit can be hit by a slammed building.
+func hit_radius() -> float:
+	return 4.0 * _size
 
 
 func _ready() -> void:
@@ -69,7 +77,7 @@ func _process(delta: float) -> void:
 		_attack_cd -= delta
 		if _attack_cd <= 0.0:
 			_attack_cd = ATTACK_INTERVAL
-			wall.damage(3 if kind == "brute" else 1)
+			wall.damage({"brute": 3, "ram": 6}.get(kind, 1))
 		return
 	if to.length() < 3.0:
 		path_index += 1
@@ -94,6 +102,10 @@ func _blocking_wall(dir: Vector2) -> Node:
 func on_crushed() -> void:
 	if not _alive:
 		return
+	crushes_to_kill -= 1
+	if crushes_to_kill > 0:
+		_hurt()
+		return
 	_alive = false
 	var splats := get_tree().get_first_node_in_group("splats")
 	if splats:
@@ -102,6 +114,16 @@ func on_crushed() -> void:
 	var tw := create_tween()
 	tw.tween_property(self, "scale", Vector2(1.9, 0.12), 0.06)
 	tw.tween_callback(queue_free)
+
+
+## Survived a crush (boss): splat, stun, squash.
+func _hurt() -> void:
+	var splats := get_tree().get_first_node_in_group("splats")
+	if splats:
+		splats.add_splat(position, Palette.RED)
+	stun = 1.5
+	scale = Vector2(1.6, 0.4)
+	create_tween().tween_property(self, "scale", Vector2.ONE, 0.4).set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
 
 
 func on_slapped(dir: Vector2) -> void:
@@ -141,6 +163,9 @@ func on_flipped(to: Vector2) -> void:
 
 
 func _draw() -> void:
+	if kind == "ram":
+		_draw_ram()
+		return
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE * _size)
 	var fill := Palette.RED if team == Team.ENEMY else Palette.BLUE
 	if kind == "runner":
@@ -165,3 +190,29 @@ func _draw() -> void:
 		for i in 3:
 			var a := _t * 6.0 + i * TAU / 3.0
 			draw_circle(Vector2(cos(a) * 6.0, -12.0 + sin(a) * 2.0), 1.0, Palette.GOLD)
+
+
+func _draw_ram() -> void:
+	var walking := stun <= 0.0
+	var bob := absf(sin(_t * 5.0)) * 1.0 if walking else 0.0
+	draw_rect(Rect2(-11, -2, 22, 14), Color(0, 0, 0, 0.15))
+	# wheels
+	for x in [-9.0, 9.0]:
+		for y in [-6.0, 6.0]:
+			draw_circle(Vector2(x, y), 3.0, Palette.INK)
+	# body + roof
+	draw_rect(Rect2(-9, -12 - bob, 18, 20), Palette.INK)
+	draw_rect(Rect2(-7.5, -10.5 - bob, 15, 17), Palette.RED)
+	for y in [-7.0, -3.0, 1.0]:
+		draw_line(Vector2(-7, y - bob), Vector2(7, y - bob), Palette.INK, 1.0)
+	# ram log pointing down the road
+	draw_rect(Rect2(-2.5, 6 - bob, 5, 10), Palette.SEPIA)
+	draw_rect(Rect2(-3.5, 14 - bob, 7, 4), Palette.INK)
+	# crush pips
+	for i in crushes_to_kill:
+		draw_circle(Vector2(-5 + i * 5, -17), 2.0, Palette.INK)
+		draw_circle(Vector2(-5 + i * 5, -17), 1.2, Palette.RED_LIGHT)
+	if not walking:
+		for i in 3:
+			var a := _t * 6.0 + i * TAU / 3.0
+			draw_circle(Vector2(cos(a) * 10.0, -20.0 + sin(a) * 3.0), 1.3, Palette.GOLD)

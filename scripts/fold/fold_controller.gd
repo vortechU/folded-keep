@@ -109,7 +109,7 @@ func compute_outcomes(m: Vector2, n: Vector2) -> Array:
 		var entry := {"unit": u, "pos": pos, "target": q}
 		if FoldMath.side(pos, m, n) > 0.0:
 			entry.outcome = Outcome.FLIP
-		elif _heavy_building_at(q) != null:
+		elif _heavy_building_at(q, u.hit_radius()) != null:
 			entry.outcome = Outcome.CRUSH
 		else:
 			entry.outcome = Outcome.SLAP
@@ -230,8 +230,8 @@ func _in_map(p: Vector2) -> bool:
 	return p.x >= 0.0 and p.y >= 0.0 and p.x < map_size.x and p.y < map_size.y
 
 
-func _heavy_building_at(p: Vector2) -> Node:
+func _heavy_building_at(p: Vector2, margin := 0.0) -> Node:
 	for b in get_tree().get_nodes_in_group("building"):
-		if b.heavy and b.contains_point(p):
+		if b.heavy and b.contains_point(p, margin):
 			return b
 	return null

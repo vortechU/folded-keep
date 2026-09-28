@@ -18,8 +18,8 @@ func _ready() -> void:
 	hp = max_hp
 
 
-func contains_point(p: Vector2) -> bool:
-	return Rect2(-size * 0.5, size).has_point((p - position).rotated(-rotation))
+func contains_point(p: Vector2, margin := 0.0) -> bool:
+	return Rect2(-size * 0.5, size).grow(margin).has_point((p - position).rotated(-rotation))
 
 
 func damage(amount: int) -> void:

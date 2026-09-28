@@ -70,7 +70,7 @@ func _start_wave() -> void:
 	_spawn_timer = 0.5
 	Events.wave_changed.emit(wave + 1, Waves.LIST.size())
 	Events.phase_changed.emit("wave")
-	Events.banner.emit("WAVE %d" % (wave + 1))
+	Events.banner.emit("FINAL WAVE" if Waves.LIST[wave].get("boss", false) else "WAVE %d" % (wave + 1))
 
 
 func _check_wave_end() -> void:
@@ -144,6 +144,9 @@ func _spawn_enemy(kind: String) -> Unit:
 	units.add_child(u)
 	u.died.connect(_on_unit_died)
 	u.reached_keep.connect(_on_reached_keep)
+	if kind == "ram":
+		Events.boss_spawned.emit()
+		Events.banner.emit("THE SIEGE RAM!")
 	return u
 
 
@@ -164,6 +167,12 @@ func _on_reached_keep(u: Unit) -> void:
 		_game_over(false)
 	else:
 		_check_wave_end.call_deferred()
+
+
+## True when the Keep itself rides the flap and lands on the map.
+func _is_keep_slam(m: Vector2, n: Vector2) -> bool:
+	var keep_pos := Paper.KEEP_POS + Vector2(0, 10)
+	return FoldMath.side(keep_pos, m, n) > 0.0 and Rect2(Vector2.ZERO, fold.map_size).has_point(FoldMath.mirror(keep_pos, m, n))
 
 
 func _set_ink(v: int) -> void:
@@ -191,10 +200,17 @@ func _unhandled_input(event: InputEvent) -> void:
 		Events.restart_requested.emit()
 
 
-func _on_slammed(_m: Vector2, _n: Vector2, outcomes: Array) -> void:
+func _on_slammed(m: Vector2, n: Vector2, outcomes: Array) -> void:
 	var crushes := outcomes.filter(func(e): return e.outcome == FoldController.Outcome.CRUSH).size()
 	Events.slammed.emit(crushes)
 	_shake = 4.0 + crushes * 1.5
+	if _is_keep_slam(m, n):
+		_shake += 6.0
+		Events.keep_slammed.emit()
+		Events.banner.emit("KEEP SLAM!")
+		if keep_hp > 1 and phase == Phase.WAVE:
+			keep_hp = maxi(1, keep_hp - Waves.KEEP_SLAM_COST)
+			Events.keep_hp_changed.emit(keep_hp, Waves.KEEP_MAX_HP)
 	# hit-stop: freeze for a heartbeat so the slam lands
 	Engine.time_scale = 0.05
 	await get_tree().create_timer(0.07 + 0.02 * mini(crushes, 4), true, false, true).timeout
@@ -206,33 +222,29 @@ func _on_slammed(_m: Vector2, _n: Vector2, outcomes: Array) -> void:
 func _run_autotest(dir: String) -> void:
 	_autotest = true
 	await _wait(0.5) # let the window settle so tap mapping is right
-	# build: a tower on open paper and a wall across the left road
-	Events.build_requested.emit("tower")
-	await _tap(Vector2(60, 330 + 26))
-	Events.build_requested.emit("wall")
-	await _tap(Vector2(128, 300 + 26))
-	await _wait(0.3)
-	await _shot(dir + "/10_built.png")
-	print("AUTOTEST ink after build=%d buildings=%d" % [ink, get_tree().get_nodes_in_group("building").size()])
-	# wave: enemies pile up at the wall
 	_start_wave()
-	for i in 6:
-		var u := _spawn_enemy("brute" if i == 5 else ("runner" if i % 2 else "grunt"))
-		u.position = paper.roads[0][0]
-		u.path = paper.roads[0]
-		await _wait(0.5)
-	await _wait(9.0)
-	await _shot(dir + "/11_wall_pileup.png")
-	fold.begin_fold(Vector2(4, 300))
+	var ram := _spawn_enemy("ram")
+	ram.position = Vector2(180, 462)
+	ram.speed = 0.0
+	for x in [150.0, 212.0]:
+		var g := _spawn_enemy("grunt")
+		g.position = Vector2(x, 470)
+		g.speed = 0.0
+	await _wait(0.3)
+	await _shot(dir + "/20_boss.png")
+	# Keep Slam: fold the bottom edge up so the Keep lands on the ram
+	fold.begin_fold(Vector2(180, 636))
 	for i in 10:
-		fold.drag_to(Vector2(4, 300).lerp(Vector2(160, 300), (i + 1) / 10.0))
+		fold.drag_to(Vector2(180, 636).lerp(Vector2(180, 420), (i + 1) / 10.0))
 		await get_tree().process_frame
 	await _wait(0.2)
-	await _shot(dir + "/12_aim.png")
+	await _shot(dir + "/21_keep_slam_aim.png")
 	fold.release()
+	await _wait(0.12)
+	await _shot(dir + "/22_keep_slam_impact.png")
 	await _wait(1.0)
-	await _shot(dir + "/13_after.png")
-	print("AUTOTEST kills=%d ink=%d phase=%d" % [kills, ink, phase])
+	await _shot(dir + "/23_after.png")
+	print("AUTOTEST ram crushes left=%d keep_hp=%d kills=%d" % [ram.crushes_to_kill, keep_hp, kills])
 	get_tree().quit()
 
 
