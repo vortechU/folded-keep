@@ -37,7 +37,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		if event.pressed:
 			_touching = true
-			_move(event.position)
+			_move(get_parent().to_local(event.position))
 		elif _touching:
 			_touching = false
 			if _valid:
@@ -45,7 +45,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			queue_redraw()
 		get_viewport().set_input_as_handled()
 	elif event is InputEventMouseMotion and _touching:
-		_move(event.position)
+		_move(get_parent().to_local(event.position))
 		get_viewport().set_input_as_handled()
 
 

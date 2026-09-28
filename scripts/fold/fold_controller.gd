@@ -68,11 +68,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		if event.pressed:
-			begin_fold(event.position)
+			begin_fold(_local(event.position))
 		else:
 			release()
 	elif event is InputEventMouseMotion and state == State.DRAGGING:
-		drag_to(event.position)
+		drag_to(_local(event.position))
 
 
 ## Returns true if the press was close enough to an edge to start a fold.
@@ -372,6 +372,11 @@ func _snap_to_edge(pos: Vector2) -> Vector2:
 		g.y = map_size.y
 		near = true
 	return g if near else Vector2.INF
+
+
+## Screen -> map coordinates (the Board is centered on screen and shakes).
+func _local(screen_pos: Vector2) -> Vector2:
+	return get_parent().to_local(screen_pos) if get_parent() is Node2D else screen_pos
 
 
 func _in_map(p: Vector2) -> bool:

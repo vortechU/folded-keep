@@ -18,6 +18,7 @@ const RENDER_SCALE := 2
 @onready var display: Sprite2D = $Board/MapDisplay
 @onready var fold: FoldController = $Board/FoldController
 @onready var build: BuildController = $Board/BuildController
+@onready var hud: Control = $UI/Hud
 
 var phase := Phase.BUILD
 var wave := 0 # waves completed / index of next wave
@@ -28,11 +29,16 @@ var kills := 0
 var _queue: Array[String] = []
 var _spawn_timer := 0.0
 var _shake := 0.0
+var _origin := Vector2.ZERO ## where the map sits on screen (centered; the table fills the rest)
 var _autotest := false
 
 
 func _ready() -> void:
 	Engine.time_scale = 1.0
+	# Tall phones and wide desktop windows get more table around the map instead of black bars.
+	get_tree().root.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_EXPAND
+	get_viewport().size_changed.connect(_layout)
+	_layout()
 	map_viewport.size = Vector2i(Paper.SIZE * RENDER_SCALE)
 	$MapViewport/World.scale = Vector2.ONE * RENDER_SCALE
 	display.scale = Vector2.ONE / RENDER_SCALE
@@ -244,7 +250,17 @@ func _process(delta: float) -> void:
 		_update_barracks(delta)
 	if _shake > 0.0:
 		_shake = maxf(0.0, _shake - delta * 40.0)
-		board.position = (Vector2(randf_range(-1, 1), randf_range(-1, 1)) * _shake).round()
+		board.position = _origin + (Vector2(randf_range(-1, 1), randf_range(-1, 1)) * _shake).round()
+
+
+## Center the 360x640 map (and the HUD drawn over it) in whatever screen we got.
+func _layout() -> void:
+	var vis := get_viewport().get_visible_rect().size
+	_origin = ((vis - Paper.SIZE) * 0.5).floor()
+	board.position = _origin
+	hud.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	hud.position = _origin
+	hud.size = Paper.SIZE
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -307,7 +323,7 @@ func _tap(pos: Vector2) -> void:
 		var e := InputEventMouseButton.new()
 		e.button_index = MOUSE_BUTTON_LEFT
 		e.pressed = pressed
-		e.position = get_tree().root.get_final_transform() * pos
+		e.position = get_tree().root.get_final_transform() * (pos + _origin)
 		Input.parse_input_event(e)
 		await get_tree().process_frame
 
