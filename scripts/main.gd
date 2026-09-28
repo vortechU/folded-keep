@@ -51,6 +51,8 @@ func _ready() -> void:
 	Events.build_requested.connect(_on_build_requested)
 	Events.start_wave_requested.connect(_start_wave)
 	Events.restart_requested.connect(func(): get_tree().reload_current_scene())
+	Events.decree_chosen.connect(_on_decree_chosen)
+	Decrees.reset()
 
 	_add_building("keep", Paper.KEEP_POS + Vector2(0, 10), Vector2(76, 44))
 	_add_building("tower", Vector2(45, 250), Vector2(22, 22))
@@ -97,7 +99,33 @@ func _check_wave_end() -> void:
 		return
 	_set_ink(ink + Waves.WAVE_BONUS_INK)
 	Events.wave_changed.emit(wave + 1, Waves.LIST.size())
+	_offer_decrees()
+
+
+## The King offers 3 decrees; the UI answers with Events.decree_chosen. Without a decree UI
+## (or in scripted tests) we skip straight to the build phase.
+func _offer_decrees() -> void:
+	var ids := Decrees.roll(3)
+	if ids.is_empty() or _autotest or Events.decree_offered.get_connections().is_empty():
+		_enter_build()
+		return
+	phase = Phase.OVER # nothing runs while the King speaks
+	Events.decree_offered.emit(ids)
+
+
+func _on_decree_chosen(id: String) -> void:
+	if Decrees.has(id) or not Decrees.LIST.has(id):
+		return
+	Decrees.active.append(id)
+	match id:
+		"stone_keep":
+			keep_hp = Waves.KEEP_MAX_HP + 4
+			Events.keep_hp_changed.emit(keep_hp, keep_max_hp())
 	_enter_build()
+
+
+func keep_max_hp() -> int:
+	return Waves.KEEP_MAX_HP + (4 if Decrees.has("stone_keep") else 0)
 
 
 func _game_over(won: bool) -> void:
@@ -220,7 +248,7 @@ func _on_reached_keep(u: Unit) -> void:
 	keep_hp = maxi(0, keep_hp - Waves.KEEP_DAMAGE.get(u.kind, 1))
 	_shake = 5.0
 	Events.keep_hit.emit()
-	Events.keep_hp_changed.emit(keep_hp, Waves.KEEP_MAX_HP)
+	Events.keep_hp_changed.emit(keep_hp, keep_max_hp())
 	if keep_hp <= 0 and phase != Phase.OVER:
 		_game_over(false)
 	else:
@@ -278,9 +306,9 @@ func _on_slammed(m: Vector2, n: Vector2, outcomes: Array) -> void:
 		_shake += 6.0
 		Events.keep_slammed.emit()
 		Events.banner.emit("KEEP SLAM!")
-		if keep_hp > 1 and phase == Phase.WAVE:
+		if keep_hp > 1 and phase == Phase.WAVE and not Decrees.has("thick_parchment"):
 			keep_hp = maxi(1, keep_hp - Waves.KEEP_SLAM_COST)
-			Events.keep_hp_changed.emit(keep_hp, Waves.KEEP_MAX_HP)
+			Events.keep_hp_changed.emit(keep_hp, keep_max_hp())
 	# hit-stop: freeze for a heartbeat so the slam lands
 	Engine.time_scale = 0.05
 	await get_tree().create_timer(0.07 + 0.02 * mini(crushes, 4), true, false, true).timeout

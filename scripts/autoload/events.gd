@@ -15,6 +15,14 @@ signal building_placed(kind: String, pos: Vector2)
 signal keep_hit
 signal keep_slammed
 signal boss_spawned
+signal torn(pos: Vector2) # the map ripped open
+signal flung(unit: Node) # a unit was flipped off the edge of the map
+
+# royal decrees (between waves) — see scripts/game/decrees.gd
+signal decree_offered(ids: Array) # gameplay -> UI: show these cards, pick one
+signal decree_chosen(id: String) # UI -> gameplay
+# a new enemy kind appears for the first time this run (UI may show an intro card)
+signal enemy_introduced(kind: String)
 
 # UI -> gameplay requests
 signal build_requested(kind: String)

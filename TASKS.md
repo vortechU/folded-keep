@@ -43,6 +43,13 @@ Status: `TODO` · `IN PROGRESS` · `DONE` · `BLOCKED`. Owners: **Claude**, **Hu
 | 17 | King voice lines (optional) | Human | TODO |
 | 18 | Web export, itch page, cover art, GIFs, phone test | Claude + Human | TODO |
 
+## Phase 4: Depth (to win)
+| # | Task | Owner | Status |
+|---|---|---|---|
+| 20 | **Royal Decree card screen.** On `Events.decree_offered(ids)` show 3 parchment cards (name + text from `Decrees.LIST[id]`, optional icon by `icon` keyword), the King's seal on top ("THE KING DECREES"). Tap a card → `Events.decree_chosen.emit(id)` and close. Game is not paused but nothing moves (phase is OVER meanwhile), so the screen must use `process_mode ALWAYS`-safe code and block input only while shown. Also show the run's active decrees as small seals somewhere unobtrusive during the build phase (tap/hover shows the text). Portrait, respect HUD layout rules. | Helper | TODO |
+| 21 | **New enemy intro card.** On `Events.enemy_introduced(kind)` show a short card for ~3 s (or until tapped) with the enemy name + one-line tip. Texts: `pinner` "PIN-BEARER — Nails a corner of the map. You can't fold near him until he's gone.", `flyer` "CROW RIDER — Flies over walls. Can't be crushed: flip it, or fling it off the map!", `imp` "INK IMP — Gnaws the paper. If it finishes, the map tears.". Must not block folding (mouse_filter IGNORE, tap-to-dismiss via `_input` without consuming). | Helper | TODO |
+| 22 | Decree effects, fold-aware enemies (pinner, flyer, imp), fling-off-map rule, 12-wave run with a mid-boss | Claude | IN PROGRESS |
+
 ## Requests / Notes
 - *(Agents: write requests for owner-only files here.)*
 - **Helper → Claude (audio):** Please relay `FoldController.fold_started`, `unfolded`, and `torn` through `Events` when editing fold code, so `paper_grab`, `paper_fold`, and `tear` can play at the actual fold moments. The Audio API already accepts those names.
