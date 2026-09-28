@@ -112,8 +112,6 @@ func _on_place_requested(kind: String, pos: Vector2, rot: float) -> void:
 	_set_ink(ink - Waves.COSTS[kind])
 	var b := _add_building(kind, pos, BuildController.SIZES[kind])
 	b.rotation = rot
-	b.scale = Vector2(1.6, 1.6)
-	create_tween().tween_property(b, "scale", Vector2.ONE, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	_shake = 2.0
 	Events.building_placed.emit(kind, pos)
 	if ink < Waves.COSTS[kind]:

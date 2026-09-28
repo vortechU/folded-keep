@@ -84,6 +84,7 @@ Main (Node2D)                      scenes/main.tscn, scripts/main.gd
 │     └─ Units      (groups "unit" + "enemy"/"ally")
 ├─ MapDisplay (Sprite2D)          ← shows MapViewport texture through shaders/fold.gdshader
 ├─ FoldController (Node)          ← scripts/fold/fold_controller.gd: input, fold math, slam
+├─ Fx (Node2D, added at runtime)  ← scripts/fx/fx.gd: dust, droplets, rings, popups above the folded map
 └─ UI (CanvasLayer)               ← HUD, build menu, screens
 ```
 - **Coordinates:** map space = SubViewport pixels = base-viewport pixels (the map sits at the origin).
@@ -97,6 +98,8 @@ Main (Node2D)                      scenes/main.tscn, scripts/main.gd
   `func contains_point(p: Vector2) -> bool`.
 - **FoldController** signals: `fold_started`, `slammed(line_point: Vector2, normal: Vector2)`,
   `unfolded`.
+- **Fx** (`scripts/fx/fx.gd`): `Fx.of(node)` returns the layer; `dust()`, `dust_ring()`, `droplets()`,
+  `ring()`, `star()`, `text()`. Any system may call these for juice.
 - Game-wide events go through the autoload `Events` (signal bus). Audio goes through the `Audio`
   autoload (`Audio.play_sfx("slam")`, `Audio.play_music("battle")`).
 
@@ -104,6 +107,7 @@ Main (Node2D)                      scenes/main.tscn, scripts/main.gd
 | Path | Owner | Others |
 |---|---|---|
 | `scripts/fold/`, `shaders/fold.gdshader` | **Claude** | Don't edit. Ask in TASKS.md. |
+| `scripts/fx/`, `scripts/tests/`, `scenes/tests/` | Claude | Call the Fx API freely; ask before editing |
 | `scripts/main.gd`, `scripts/units/`, `scripts/buildings/` | Claude (v0.1), then open | Coordinate via TASKS.md |
 | `scenes/ui/`, `scripts/ui/`, `scripts/autoload/audio.gd` | **Helper agent** (Antigravity, after prototype lock) | |
 | `assets/` | **Human** (PixelLab / AutoSprite / Suno / fish.audio) | Agents only read |

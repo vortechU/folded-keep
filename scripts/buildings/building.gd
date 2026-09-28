@@ -16,6 +16,28 @@ var hp := 0
 func _ready() -> void:
 	add_to_group("building")
 	hp = max_hp
+	_stamp()
+
+
+## Buildings are stamped onto the map: drop in big, squash, settle.
+func _stamp() -> void:
+	scale = Vector2(1.45, 1.45)
+	modulate.a = 0.0
+	var tw := create_tween()
+	tw.set_parallel()
+	tw.tween_property(self, "scale", Vector2(1.18, 0.82), 0.09).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
+	tw.tween_property(self, "modulate:a", 1.0, 0.06)
+	tw.chain().tween_callback(func():
+		var fx := Fx.of(self)
+		if fx:
+			fx.dust_ring(position, maxf(size.x, size.y) * 0.6, 12 if kind == "keep" else 8))
+	tw.tween_property(self, "scale", Vector2.ONE, 0.25).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_ELASTIC)
+
+
+## A quick squash, e.g. when the Keep is hit.
+func jolt(squash: Vector2) -> void:
+	scale = squash
+	create_tween().tween_property(self, "scale", Vector2.ONE, 0.3).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_ELASTIC)
 
 
 func contains_point(p: Vector2, margin := 0.0) -> bool:
@@ -29,6 +51,12 @@ func damage(amount: int) -> void:
 	queue_redraw()
 	scale = Vector2(1.15, 0.85)
 	create_tween().tween_property(self, "scale", Vector2.ONE, 0.2)
+	var fx := Fx.of(self)
+	if fx:
+		fx.droplets(position, Palette.BLUE, 2 + amount, 0.7)
+		if hp <= 0:
+			fx.dust(position, Vector2.ZERO, 12, size.x * 0.4)
+			fx.droplets(position, Palette.INK, 10, 1.0)
 	if hp <= 0:
 		remove_from_group("building")
 		destroyed.emit(self)

@@ -27,7 +27,7 @@ Status: `TODO` · `IN PROGRESS` · `DONE` · `BLOCKED`. Owners: **Claude**, **Hu
 | 6 | Build phase: Ink currency, stamping buildings, placement rules | Claude | DONE: towers on open paper, walls snap across roads (6 HP) |
 | 7 | `Audio` autoload (music crossfade, sfx pool), hooked to `Events` signals. `Events` already exists | Helper | TODO |
 | 8 | Real HUD replacing `scripts/ui/proto_hud.gd` (same Events API): Keep HP, Ink, wave, build buttons, wax-seal style | Helper | DONE: replaced prototype with wax-seal HUD; Keep/Ink/wave and build controls use Events only. Costs are 4/3 in UI. |
-| 9 | Main menu, pause, victory/defeat screens | Helper | TODO |
+| 9 | Main menu, pause, victory/defeat screens | Helper | DONE: added parchment menu, pause, and result screens; one-pointer buttons use Events for restart and leave wave edges clear. |
 | 10 | All remaining sprites + walk animations (ART_BRIEF step 2) | Human | TODO |
 | 11 | Music (Suno) + SFX | Human | TODO |
 
@@ -36,7 +36,7 @@ Status: `TODO` · `IN PROGRESS` · `DONE` · `BLOCKED`. Owners: **Claude**, **Hu
 |---|---|---|---|
 | 12 | Enemy types (runner, brute) + boss | Claude | DONE: runner, brute, Siege Ram boss (wave 7) + Keep Slam |
 | 13 | Wave tuning (6 waves + boss) | Helper | TODO |
-| 14 | Juice: screen shake, dust, splats, squash & stretch, hit-stop | Claude | TODO |
+| 14 | Juice: screen shake, dust, splats, squash & stretch, hit-stop | Claude | DONE: `scripts/fx/fx.gd` layer (slam dust from flap edges, flap flash, ink droplets, combo + reward popups, stamp-in buildings, slap stars). Test: `scenes/tests/juice_test.tscn` |
 | 15 | 20-second tutorial (first wave teaches the fold with a hand icon) | Helper | TODO |
 | 16 | Wear & tear crease rule (decide after playtest) | Claude | TODO |
 | 17 | King voice lines (optional) | Human | TODO |

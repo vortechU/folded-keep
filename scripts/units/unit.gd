@@ -110,9 +110,15 @@ func on_crushed() -> void:
 	var splats := get_tree().get_first_node_in_group("splats")
 	if splats:
 		splats.add_splat(position, Palette.RED if team == Team.ENEMY else Palette.BLUE)
+	var fx := Fx.of(self)
+	if fx:
+		fx.droplets(position, Palette.RED if team == Team.ENEMY else Palette.BLUE, int(8 * _size), 1.1)
+		fx.dust(position, Vector2.ZERO, 4, 5.0 * _size)
 	died.emit(self)
 	var tw := create_tween()
-	tw.tween_property(self, "scale", Vector2(1.9, 0.12), 0.06)
+	tw.tween_property(self, "scale", Vector2(1.9, 0.12), 0.05)
+	tw.tween_interval(0.12)
+	tw.tween_property(self, "modulate:a", 0.0, 0.08)
 	tw.tween_callback(queue_free)
 
 
@@ -121,14 +127,30 @@ func _hurt() -> void:
 	var splats := get_tree().get_first_node_in_group("splats")
 	if splats:
 		splats.add_splat(position, Palette.RED)
+	var fx := Fx.of(self)
+	if fx:
+		fx.droplets(position, Palette.RED, 16, 1.4)
+		fx.ring(position, 34.0, Palette.RED, 0.35)
+		fx.text(position + Vector2(0, -26), "%d MORE!" % crushes_to_kill, Palette.RED_LIGHT)
 	stun = 1.5
 	scale = Vector2(1.6, 0.4)
 	create_tween().tween_property(self, "scale", Vector2.ONE, 0.4).set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
 
 
 func on_slapped(dir: Vector2) -> void:
-	if not _alive or slap_immune:
+	if not _alive:
 		return
+	var fx := Fx.of(self)
+	if slap_immune:
+		# Too heavy to slap: a dull thud, it doesn't even flinch.
+		if fx:
+			fx.star(position + Vector2(0, -6) * _size, Palette.PARCHMENT_SHADOW)
+		scale = Vector2(1.1, 0.9)
+		create_tween().tween_property(self, "scale", Vector2.ONE, 0.15)
+		return
+	if fx:
+		fx.star(position + Vector2(0, -6))
+		fx.dust(position, dir, 3)
 	slaps_to_kill -= 1
 	if slaps_to_kill <= 0:
 		on_crushed()
@@ -144,6 +166,10 @@ func on_slapped(dir: Vector2) -> void:
 func on_flipped(to: Vector2) -> void:
 	if not _alive:
 		return
+	var fx := Fx.of(self)
+	if fx:
+		fx.dust_ring(to, 8.0, 6)
+		fx.ring(to, 12.0, Palette.BLUE_LIGHT, 0.25)
 	position = to
 	stun = 1.0
 	# Resume at the closest waypoint so a flipped unit doesn't walk back up the road.

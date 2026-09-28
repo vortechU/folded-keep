@@ -30,6 +30,13 @@ var creases: Array[Vector4] = []
 var _mat: ShaderMaterial
 var _preview: Array = []
 var _pulse := 0.0
+## Scripted tests drive the fold directly; ignore the real mouse so it can't interfere.
+var _scripted := Array(OS.get_cmdline_user_args()).any(func(a: String) -> bool: return a.begins_with("--autotest"))
+
+
+func _ready() -> void:
+	# The juice layer sits above the folded map, so dust flies over the flap too.
+	get_parent().add_child.call_deferred(Fx.new())
 
 
 func setup(display: Sprite2D) -> void:
@@ -45,6 +52,8 @@ func _process(delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if _scripted:
+		return
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		if event.pressed:
 			begin_fold(event.position)
@@ -130,6 +139,10 @@ func _impact() -> void:
 			Outcome.FLIP:
 				e.unit.on_flipped(e.target)
 	_add_crease(m, n)
+	_flash()
+	var fx := Fx.of(self)
+	if fx:
+		fx.slam(m, n, outcomes)
 	slammed.emit(m, n, outcomes)
 
 
@@ -168,6 +181,12 @@ func _apply() -> void:
 		_mat.set_shader_parameter("fold_point", FoldMath.line_point(grab, pointer))
 		_mat.set_shader_parameter("fold_normal", FoldMath.normal(grab, pointer))
 		_mat.set_shader_parameter("lift", lift)
+
+
+## The flap's back flares for an instant when it hits the map.
+func _flash() -> void:
+	_mat.set_shader_parameter("flash", 1.0)
+	create_tween().tween_method(func(v: float): _mat.set_shader_parameter("flash", v), 1.0, 0.0, 0.18)
 
 
 func _add_crease(m: Vector2, n: Vector2) -> void:

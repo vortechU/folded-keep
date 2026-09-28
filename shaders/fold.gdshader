@@ -8,6 +8,7 @@ uniform bool fold_active = false;
 uniform vec2 fold_point = vec2(0.0);   // point on the fold line (map px)
 uniform vec2 fold_normal = vec2(1.0, 0.0); // unit normal, points toward the flap side
 uniform float lift = 0.0;              // 1 = flap held up (shadow, translucent), 0 = pressed flat
+uniform float flash = 0.0;             // impact flare on the flap's back, 1 -> 0
 uniform vec4 table_color : source_color = vec4(0.165, 0.114, 0.078, 1.0);
 uniform vec4 back_color : source_color = vec4(0.86, 0.79, 0.62, 1.0);
 uniform int crease_count = 0;
@@ -61,6 +62,7 @@ void fragment() {
 				b *= mix(0.8, 1.0, smoothstep(0.0, 16.0, -d)); // curl shading at the crease
 				b *= mix(0.7, 1.0, smoothstep(0.0, 2.5, edge_dist(q))); // paper edge
 				col = b * (1.0 + 0.05 * lift);
+				col = mix(col, vec3(1.0, 0.97, 0.88), flash * 0.55);
 			} else {
 				// Flap shadow on the map.
 				vec2 off = vec2(2.0, 4.0) * (0.5 + 2.5 * lift);
