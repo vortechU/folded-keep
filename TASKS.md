@@ -35,9 +35,9 @@ Status: `TODO` · `IN PROGRESS` · `DONE` · `BLOCKED`. Owners: **Claude**, **Hu
 | # | Task | Owner | Status |
 |---|---|---|---|
 | 12 | Enemy types (runner, brute) + boss | Claude | DONE: runner, brute, Siege Ram boss (wave 7) + Keep Slam |
-| 13 | Wave tuning (6 waves + boss) | Helper | TODO |
+| 13 | Wave tuning (6 waves + boss) | Helper | DONE: waves 1–6 now rise by two enemies each with gentler spawn timing; wave 7 has a lean escort for the Siege Ram. Starting 8 ink still buys barracks + wall; headless smoke test clean. |
 | 14 | Juice: screen shake, dust, splats, squash & stretch, hit-stop | Claude | DONE: `scripts/fx/fx.gd` layer (slam dust from flap edges, flap flash, ink droplets, combo + reward popups, stamp-in buildings, slap stars). Test: `scenes/tests/juice_test.tscn` |
-| 15 | 20-second tutorial (first wave teaches the fold with a hand icon) | Helper | TODO |
+| 15 | 20-second tutorial (first wave teaches the fold with a hand icon) | Helper | DONE: `scripts/ui/fold_tutorial.gd` (added by hud.gd): wave 1 only, small parchment note on empty paper at bottom-left + animated hand dragging the right edge inward; input-transparent, hides while the pointer is held, clears on first slam or after 20 s, and a static flag keeps it from returning after restart. Smoke + juice/knights/tear/autotest clean. |
 | 19 | Barracks + blue knights | Claude | DONE: 5 ink, squad of 2 guards the nearest road, pins enemies in melee (enemy `hp`/`hit` in `unit.gd` KINDS); folds hurt knights too. Test: `scenes/tests/knights_test.tscn` |
 | 16 | Wear & tear crease rule (decide after playtest) | Claude | DONE: 3 creases meeting rip a hole (preview marker), holes swallow 3 units then get patched; buildings on a rip are lost. Test: `scenes/tests/tear_test.tscn` |
 | 17 | King voice lines (optional) | Human | TODO |

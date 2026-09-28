@@ -2,6 +2,7 @@ extends Control
 ## Parchment HUD. Gameplay state and requests pass exclusively through Events.
 
 const ScreensScene := preload("res://scenes/ui/game_screens.tscn")
+const TutorialScript := preload("res://scripts/ui/fold_tutorial.gd")
 
 const PANEL := Color("#2A1D14")
 const WAX := Color("#A8322D")
@@ -55,6 +56,7 @@ func _ready() -> void:
 	Events.phase_changed.connect(_on_phase_changed)
 	Events.banner.connect(_show_banner)
 	_refresh()
+	add_child(TutorialScript.new())
 	add_child(ScreensScene.instantiate())
 
 

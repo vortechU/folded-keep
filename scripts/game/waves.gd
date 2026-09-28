@@ -1,14 +1,16 @@
 class_name Waves
-## Wave table. Tune freely (owner: Helper, task 13). Counts per enemy kind + seconds between spawns.
+## Six steadily growing waves, then a smaller escort around the three-crush boss.
+## The slower cadence leaves time to fold without stacking up tears; starting ink
+## buys a barracks plus a wall, and each clear grants another 3 ink before kills.
 
 const LIST := [
-	{"grunt": 6, "interval": 1.6},
-	{"grunt": 10, "interval": 1.3},
-	{"grunt": 8, "runner": 4, "interval": 1.1},
-	{"grunt": 10, "runner": 4, "brute": 2, "interval": 1.0},
-	{"grunt": 12, "runner": 6, "brute": 3, "interval": 0.9},
-	{"grunt": 14, "runner": 8, "brute": 5, "interval": 0.8},
-	{"grunt": 8, "runner": 6, "brute": 2, "ram": 1, "interval": 1.0, "boss": true},
+	{"grunt": 6, "interval": 1.8},
+	{"grunt": 8, "interval": 1.7},
+	{"grunt": 8, "runner": 2, "interval": 1.6},
+	{"grunt": 8, "runner": 3, "brute": 1, "interval": 1.5},
+	{"grunt": 8, "runner": 4, "brute": 2, "interval": 1.4},
+	{"grunt": 8, "runner": 5, "brute": 3, "interval": 1.3},
+	{"grunt": 4, "runner": 2, "brute": 1, "ram": 1, "interval": 1.5, "boss": true},
 ]
 
 const START_INK := 8
