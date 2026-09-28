@@ -13,6 +13,8 @@ uniform vec4 table_color : source_color = vec4(0.165, 0.114, 0.078, 1.0);
 uniform vec4 back_color : source_color = vec4(0.86, 0.79, 0.62, 1.0);
 uniform int crease_count = 0;
 uniform vec4 creases[16]; // xy = point on crease, zw = normal
+uniform int hole_count = 0;
+uniform vec3 holes[8];    // tears in the map: xy = center, z = radius
 
 bool inside(vec2 p) {
 	return p.x >= 0.0 && p.y >= 0.0 && p.x < map_size.x && p.y < map_size.y;
@@ -43,9 +45,30 @@ vec3 front(vec3 c, vec2 p) {
 	return c;
 }
 
+// Signed distance-ish to the nearest tear: < 0 inside a hole. Ragged edge from a few sines.
+float tear_dist(vec2 p) {
+	float best = 1e5;
+	for (int i = 0; i < 8; i++) {
+		if (i >= hole_count) {
+			break;
+		}
+		vec2 v = p - holes[i].xy;
+		float a = atan(v.y, v.x);
+		float r = holes[i].z * (1.0 + 0.16 * sin(a * 7.0 + holes[i].x) + 0.07 * sin(a * 17.0 + holes[i].y));
+		best = min(best, length(v) - r);
+	}
+	return best;
+}
+
 void fragment() {
 	vec2 p = UV * map_size;
 	vec3 col = front(texture(TEXTURE, p / map_size).rgb, p);
+	float td = tear_dist(p);
+	if (td < 0.0) {
+		col = table_color.rgb * (0.75 + 0.25 * smoothstep(-6.0, 0.0, td)); // looking down the hole
+	} else if (td < 2.5) {
+		col = mix(vec3(0.96, 0.92, 0.8), col * 0.7, smoothstep(0.0, 2.5, td)); // torn paper fibers
+	}
 	if (fold_active) {
 		float d = dot(p - fold_point, fold_normal);
 		if (d > 0.0) {
@@ -53,7 +76,7 @@ void fragment() {
 			col = table_color.rgb * (0.9 + 0.1 * smoothstep(0.0, 40.0, d));
 		} else {
 			vec2 q = mirror(p);
-			if (inside(q)) {
+			if (inside(q) && tear_dist(q) >= 0.0) {
 				// Back of the flap. Its ink shows through faintly, mirrored.
 				vec3 ink = texture(TEXTURE, q / map_size).rgb;
 				vec3 b = mix(back_color.rgb, ink * 0.92, 0.24);

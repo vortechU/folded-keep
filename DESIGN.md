@@ -34,9 +34,11 @@ hits whatever lies underneath. Your castle layout *is* your arsenal.
    - Impact juice: hit-stop (70 ms + extra per crush) and screen shake. Crushed units leave
      **permanent ink splats**, so the map remembers every battle.
 4. The map **unfolds automatically** 0.35 s after the slam.
-5. **Creases:** each slam leaves a visible crease line. *Wear & tear rule TBD after the prototype.
-   Leading candidate: slamming across 3+ existing creases tears the map and leaves a permanent
-   chasm. Things printed on the chasm are lost; units walking into it fall.*
+5. **Creases & tears:** each slam leaves a visible crease line. Where a new crease crosses two
+   old creases close together (three folds meeting), the map **rips open** into a hole (a red
+   rip marker previews it while dragging). Buildings on the rip are lost (the Keep's area never
+   tears). Units that walk into a hole fall through (enemies still pay out ink). Each hole
+   swallows 3 units, then it's stitched shut with a patch. Tuning in `fold_controller.gd`.
 6. **Enemies** (red ink) walk the roads from the top edge toward the **Keep** (bottom center).
    Reaching the Keep damages it. Keep HP 0 = defeat.
 7. **Build phase** between waves: spend **Ink** (earned from kills) to stamp buildings on

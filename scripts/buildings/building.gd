@@ -53,6 +53,18 @@ func contains_point(p: Vector2, margin := 0.0) -> bool:
 	return Rect2(-size * 0.5, size).grow(margin).has_point((p - position).rotated(-rotation))
 
 
+## Lost to a tear in the map: sinks into the hole.
+func crumble() -> void:
+	if not is_in_group("building"):
+		return
+	remove_from_group("building")
+	destroyed.emit(self)
+	var tw := create_tween().set_parallel()
+	tw.tween_property(self, "scale", Vector2(0.2, 0.2), 0.35).set_ease(Tween.EASE_IN)
+	tw.tween_property(self, "modulate:a", 0.0, 0.35)
+	tw.chain().tween_callback(queue_free)
+
+
 func damage(amount: int) -> void:
 	if max_hp <= 0 or hp <= 0:
 		return

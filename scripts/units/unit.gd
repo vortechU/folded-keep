@@ -259,6 +259,20 @@ func on_slapped(dir: Vector2) -> void:
 	create_tween().tween_property(self, "scale", Vector2.ONE, 0.25).set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
 
 
+## Walked into a tear in the map: tumble through it and gone.
+func on_fell(hole: Vector2) -> void:
+	if not _alive:
+		return
+	_alive = false
+	foe = null
+	died.emit(self)
+	var tw := create_tween().set_parallel()
+	tw.tween_property(self, "position", hole, 0.25)
+	tw.tween_property(self, "scale", Vector2(0.1, 0.1), 0.35).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_BACK)
+	tw.tween_property(self, "rotation", TAU * 1.5, 0.35)
+	tw.chain().tween_callback(queue_free)
+
+
 func on_flipped(to: Vector2) -> void:
 	if not _alive:
 		return
