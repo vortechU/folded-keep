@@ -7,7 +7,7 @@ signal place_requested(kind: String, pos: Vector2, rot: float)
 signal disarmed
 
 const FINGER_OFFSET := Vector2(0, -26)
-const SIZES := {"tower": Vector2(22, 22), "wall": Vector2(34, 9)}
+const SIZES := {"tower": Vector2(22, 22), "wall": Vector2(34, 9), "barracks": Vector2(26, 20)}
 const PLAY_RECT := Rect2(14, 34, 332, 520)
 
 var armed := ""

@@ -38,6 +38,7 @@ Status: `TODO` · `IN PROGRESS` · `DONE` · `BLOCKED`. Owners: **Claude**, **Hu
 | 13 | Wave tuning (6 waves + boss) | Helper | TODO |
 | 14 | Juice: screen shake, dust, splats, squash & stretch, hit-stop | Claude | DONE: `scripts/fx/fx.gd` layer (slam dust from flap edges, flap flash, ink droplets, combo + reward popups, stamp-in buildings, slap stars). Test: `scenes/tests/juice_test.tscn` |
 | 15 | 20-second tutorial (first wave teaches the fold with a hand icon) | Helper | TODO |
+| 19 | Barracks + blue knights | Claude | DONE: 5 ink, squad of 2 guards the nearest road, pins enemies in melee (enemy `hp`/`hit` in `unit.gd` KINDS); folds hurt knights too. Test: `scenes/tests/knights_test.tscn` |
 | 16 | Wear & tear crease rule (decide after playtest) | Claude | TODO |
 | 17 | King voice lines (optional) | Human | TODO |
 | 18 | Web export, itch page, cover art, GIFs, phone test | Claude + Human | TODO |

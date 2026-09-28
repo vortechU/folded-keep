@@ -57,6 +57,7 @@ func _ready() -> void:
 
 func _enter_build() -> void:
 	phase = Phase.BUILD
+	_fill_squads()
 	Events.phase_changed.emit("build")
 	Events.banner.emit("BUILD, THEN FIGHT!" if wave == 0 else "WAVE CLEARED")
 
@@ -114,6 +115,8 @@ func _on_place_requested(kind: String, pos: Vector2, rot: float) -> void:
 	b.rotation = rot
 	_shake = 2.0
 	Events.building_placed.emit(kind, pos)
+	if kind == "barracks":
+		_fill_squads.call_deferred()
 	if ink < Waves.COSTS[kind]:
 		build.disarm()
 
@@ -125,6 +128,8 @@ func _add_building(kind: String, pos: Vector2, size: Vector2) -> Building:
 	b.position = pos
 	if kind == "wall":
 		b.max_hp = 6
+	elif kind == "barracks":
+		b.heavy = false
 	buildings.add_child(b)
 	return b
 
@@ -146,6 +151,49 @@ func _spawn_enemy(kind: String) -> Unit:
 		Events.boss_spawned.emit()
 		Events.banner.emit("THE SIEGE RAM!")
 	return u
+
+
+## Each barracks keeps its squad of knights topped up during waves.
+func _update_barracks(delta: float) -> void:
+	for b in get_tree().get_nodes_in_group("building"):
+		if b.kind != "barracks":
+			continue
+		b.squad = b.squad.filter(func(k): return is_instance_valid(k) and k.is_alive())
+		if b.squad.size() >= Waves.SQUAD_SIZE:
+			b.spawn_cd = 0.0
+			continue
+		b.spawn_cd -= delta
+		if b.spawn_cd <= 0.0:
+			b.spawn_cd = Waves.KNIGHT_RESPAWN
+			b.squad.append(_spawn_knight(b))
+		b.queue_redraw()
+
+
+## Barracks start every wave (and arrive) with a full squad.
+func _fill_squads() -> void:
+	for b in get_tree().get_nodes_in_group("building"):
+		if b.kind == "barracks":
+			b.squad = b.squad.filter(func(k): return is_instance_valid(k) and k.is_alive())
+			while b.squad.size() < Waves.SQUAD_SIZE:
+				b.squad.append(_spawn_knight(b))
+			b.spawn_cd = Waves.KNIGHT_RESPAWN
+			b.queue_redraw()
+
+
+func _spawn_knight(b: Building) -> Unit:
+	var k: Unit = UnitScript.new()
+	k.team = Unit.Team.ALLY
+	k.setup("knight")
+	k.position = b.position + Vector2(0, b.size.y * 0.5 + 2)
+	# Guard the nearest road, a few steps apart from squadmates.
+	var road := paper.closest_road(b.position)
+	k.post = road.point + road.dir * (b.squad.size() * 14.0 - 7.0)
+	k.died.connect(_on_unit_died)
+	units.add_child(k)
+	var fx := Fx.of(self)
+	if fx:
+		fx.dust_ring(k.position, 6.0, 5)
+	return k
 
 
 func _on_unit_died(u: Unit) -> void:
@@ -186,6 +234,8 @@ func _process(delta: float) -> void:
 		if _spawn_timer <= 0.0:
 			_spawn_timer = Waves.LIST[wave].interval
 			_spawn_enemy(_queue.pop_front())
+	if phase == Phase.WAVE:
+		_update_barracks(delta)
 	if _shake > 0.0:
 		_shake = maxf(0.0, _shake - delta * 40.0)
 		board.position = (Vector2(randf_range(-1, 1), randf_range(-1, 1)) * _shake).round()

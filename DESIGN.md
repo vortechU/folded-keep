@@ -56,7 +56,7 @@ hits whatever lies underneath. Your castle layout *is* your arsenal.
 | Keep | yes | Your castle. Fold the bottom edge up for a **Keep Slam** (huge area). Costs 1 Keep HP during a wave, never drops you below 1. |
 | Tower | yes | The basic hammer. Cheap. |
 | Wall | yes | Heavy *and* blocks the road. Enemies stop to bash it. |
-| Barracks | no | Spawns blue knights that fight enemies. Knights are vulnerable to your own folds. |
+| Barracks | no | 5 ink. Keeps 2 blue knights on the nearest road (respawn 6 s in waves). Knights pin enemies in melee, which sets up folds, but your folds hurt them too. |
 
 ### Enemies (red ink)
 | Enemy | Behavior |

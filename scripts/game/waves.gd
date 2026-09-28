@@ -13,7 +13,9 @@ const LIST := [
 
 const START_INK := 8
 const WAVE_BONUS_INK := 3
-const COSTS := {"tower": 4, "wall": 3}
+const COSTS := {"tower": 4, "wall": 3, "barracks": 5}
+const SQUAD_SIZE := 2 ## knights per barracks
+const KNIGHT_RESPAWN := 6.0 ## seconds, during waves
 const REWARDS := {"grunt": 1, "runner": 1, "brute": 3, "ram": 10}
 const KEEP_DAMAGE := {"grunt": 1, "runner": 1, "brute": 3, "ram": 5}
 const KEEP_SLAM_COST := 1

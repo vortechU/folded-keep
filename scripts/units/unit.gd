@@ -8,14 +8,18 @@ signal reached_keep(unit: Unit)
 
 enum Team { ENEMY, ALLY }
 
+## hp = sword hits it takes in melee (knights vs enemies). Folds ignore hp.
 const KINDS := {
-	"grunt": {"speed": 16.0, "slaps": 2, "slap_immune": false, "size": 1.0},
-	"runner": {"speed": 30.0, "slaps": 1, "slap_immune": false, "size": 0.85},
-	"brute": {"speed": 9.0, "slaps": 99, "slap_immune": true, "size": 1.5},
-	"knight": {"speed": 18.0, "slaps": 2, "slap_immune": false, "size": 1.0},
-	"ram": {"speed": 7.0, "slaps": 99, "slap_immune": true, "size": 2.2, "crushes": 3},
+	"grunt": {"speed": 16.0, "slaps": 2, "slap_immune": false, "size": 1.0, "hp": 3, "hit": 1},
+	"runner": {"speed": 30.0, "slaps": 1, "slap_immune": false, "size": 0.85, "hp": 2, "hit": 1},
+	"brute": {"speed": 9.0, "slaps": 99, "slap_immune": true, "size": 1.5, "hp": 8, "hit": 2},
+	"knight": {"speed": 26.0, "slaps": 2, "slap_immune": false, "size": 1.0, "hp": 5, "hit": 1},
+	"ram": {"speed": 7.0, "slaps": 99, "slap_immune": true, "size": 2.2, "crushes": 3, "hp": 9999, "hit": 3},
 }
 const ATTACK_INTERVAL := 1.0
+const MELEE := 9.0 ## knights engage within this distance
+const AGGRO := 48.0 ## knights chase enemies this close to their post
+const LEASH := 70.0 ## ...but never further than this from it
 
 @export var team := Team.ENEMY
 @export var kind := "grunt"
@@ -28,10 +32,18 @@ var path: PackedVector2Array = []
 var path_index := 0
 var stun := 0.0
 
+var hp := 3
+var hit := 1
+## Knights: the road point they guard. Enemies: unused.
+var post := Vector2.ZERO
+## Melee opponent (knight <-> enemy). Enemies stand still while a knight holds them.
+var foe: Unit
+
 var _alive := true
 var _t := 0.0
 var _size := 1.0
 var _attack_cd := 0.0
+var _flash := 0.0
 
 
 ## Apply the stats of a kind from KINDS. Call before adding to the tree.
@@ -43,6 +55,8 @@ func setup(unit_kind: String) -> void:
 	slap_immune = k.slap_immune
 	crushes_to_kill = k.get("crushes", 1)
 	_size = k.size
+	hp = k.hp
+	hit = k.hit
 
 
 ## How far from its center a unit can be hit by a slammed building.
@@ -64,9 +78,18 @@ func _process(delta: float) -> void:
 	if not _alive:
 		return
 	_t += delta
+	_flash = maxf(0.0, _flash - delta)
 	queue_redraw()
 	if stun > 0.0:
 		stun -= delta
+		return
+	if foe and not (is_instance_valid(foe) and foe.is_alive()):
+		foe = null
+	if team == Team.ALLY:
+		_knight_step(delta)
+		return
+	if foe:
+		_fight(delta)
 		return
 	if path_index >= path.size():
 		return
@@ -87,6 +110,69 @@ func _process(delta: float) -> void:
 			queue_free()
 		return
 	position += to.normalized() * speed * delta
+
+
+## Guard the post; charge enemies that come near it; fight them in melee.
+func _knight_step(delta: float) -> void:
+	if foe == null:
+		foe = _find_prey()
+	if foe:
+		var to := foe.position - position
+		if to.length() > MELEE:
+			if foe.position.distance_to(post) > LEASH:
+				foe = null
+				return
+			position += to.normalized() * speed * delta
+			return
+		# Pin it: the enemy turns to fight us if it isn't fighting someone already.
+		if foe.foe == null:
+			foe.foe = self
+		_fight(delta)
+		return
+	var home := post - position
+	if home.length() > 2.0:
+		position += home.normalized() * minf(speed * delta, home.length())
+
+
+func _find_prey() -> Unit:
+	var best: Unit = null
+	var best_d := AGGRO
+	for e in get_tree().get_nodes_in_group("enemy"):
+		if not e.is_alive():
+			continue
+		var d: float = e.position.distance_to(post)
+		if d < best_d:
+			best_d = d
+			best = e
+	return best
+
+
+func _fight(delta: float) -> void:
+	_attack_cd -= delta
+	if _attack_cd > 0.0:
+		return
+	_attack_cd = ATTACK_INTERVAL * randf_range(0.85, 1.15)
+	# a little lunge toward the foe
+	var d := (foe.position - position).normalized()
+	var tw := create_tween()
+	tw.tween_property(self, "position", position + d * 3.0, 0.06)
+	tw.tween_property(self, "position", position, 0.12)
+	foe.take_hit(hit, d)
+
+
+## Hurt by a sword (not a fold).
+func take_hit(amount: int, dir: Vector2) -> void:
+	if not _alive:
+		return
+	hp -= amount
+	_flash = 0.12
+	var fx := Fx.of(self)
+	if fx:
+		fx.droplets(position + Vector2(0, -4), Palette.RED if team == Team.ENEMY else Palette.BLUE, 3, 0.6)
+		fx.star(position + dir * 3.0 + Vector2(0, -5), Palette.PARCHMENT)
+	if hp <= 0:
+		crushes_to_kill = 1
+		on_crushed()
 
 
 func _blocking_wall(dir: Vector2) -> Node:
@@ -156,6 +242,7 @@ func on_slapped(dir: Vector2) -> void:
 		on_crushed()
 		return
 	stun = 1.5
+	foe = null
 	var tw := create_tween()
 	tw.tween_property(self, "position", (position + dir * 14.0).clamp(Vector2(4, 4), Vector2(356, 636)), 0.15) \
 		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
@@ -166,6 +253,7 @@ func on_slapped(dir: Vector2) -> void:
 func on_flipped(to: Vector2) -> void:
 	if not _alive:
 		return
+	foe = null
 	var fx := Fx.of(self)
 	if fx:
 		fx.dust_ring(to, 8.0, 6)
@@ -173,6 +261,7 @@ func on_flipped(to: Vector2) -> void:
 	position = to
 	stun = 1.0
 	# Resume at the closest waypoint so a flipped unit doesn't walk back up the road.
+	# (Knights just march back to their post.)
 	var best := path_index
 	var best_d := INF
 	for i in range(path.size()):
@@ -196,6 +285,8 @@ func _draw() -> void:
 	var fill := Palette.RED if team == Team.ENEMY else Palette.BLUE
 	if kind == "runner":
 		fill = Palette.RED_LIGHT
+	if _flash > 0.0:
+		fill = Palette.PARCHMENT
 	var walking := stun <= 0.0
 	var bob := absf(sin(_t * 9.0)) * 1.5 if walking else 0.0
 	draw_circle(Vector2(0, 3), 4.0, Color(0, 0, 0, 0.15))
@@ -210,8 +301,12 @@ func _draw() -> void:
 		draw_line(Vector2(5, -12 - bob), Vector2(5, 3 - bob), Palette.INK, 1.0)
 		draw_rect(Rect2(4, -14 - bob, 3, 2), Palette.INK)
 	else:
-		draw_rect(Rect2(-7, -4 - bob, 3, 5), Palette.INK)
-		draw_line(Vector2(5, -9 - bob), Vector2(5, 1 - bob), Palette.PARCHMENT_SHADOW, 1.0)
+		# shield, sword, helmet plume
+		draw_rect(Rect2(-8, -5 - bob, 4, 6), Palette.INK)
+		draw_rect(Rect2(-7, -4 - bob, 2, 4), Palette.BLUE_LIGHT)
+		draw_line(Vector2(5, -11 - bob), Vector2(5, 1 - bob), Palette.INK, 1.0)
+		draw_line(Vector2(3, -3 - bob), Vector2(7, -3 - bob), Palette.INK, 1.0)
+		draw_rect(Rect2(-1, -12 - bob, 2, 3), Palette.BLUE_LIGHT)
 	if not walking:
 		for i in 3:
 			var a := _t * 6.0 + i * TAU / 3.0

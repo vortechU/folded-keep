@@ -45,7 +45,8 @@ func _ready() -> void:
 	_make_banner()
 	# Keep the Keep (x 140-220, y 545-625) and the bottom edge clear: buttons sit in the
 	# side bands only (0-140 and 220-360), never over the Keep's footprint.
-	_buttons["tower"] = _seal("TOWER\n%d INK" % _costs.get("tower", 4), 38.0, func() -> void: _request_build("tower"))
+	_buttons["tower"] = _seal("TOWER\n%d INK" % _costs.get("tower", 4), 6.0, func() -> void: _request_build("tower"))
+	_buttons["barracks"] = _seal("KNIGHTS\n%d INK" % _costs.get("barracks", 5), 74.0, func() -> void: _request_build("barracks"))
 	_buttons["wall"] = _seal("WALL\n%d INK" % _costs.get("wall", 3), 224.0, func() -> void: _request_build("wall"))
 	_buttons["fight"] = _seal("FIGHT!", 296.0, func() -> void: Events.start_wave_requested.emit())
 	Events.keep_hp_changed.connect(_on_keep_hp_changed)
@@ -180,7 +181,7 @@ func _refresh() -> void:
 	_wave_label.text = "WAVE %d/%d" % [_wave, _total_waves]
 	_phase_label.text = "STAMP A DEFENSE" if _phase == "build" else "FOLD AN EDGE TO STRIKE"
 	_phase_label.visible = _phase == "build" or _phase == "wave"
-	for kind in ["tower", "wall"]:
+	for kind in ["tower", "barracks", "wall"]:
 		var button: Button = _buttons[kind]
 		button.visible = _phase == "build"
 		button.disabled = _ink < int(_costs.get(kind, 0))
