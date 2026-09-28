@@ -31,6 +31,7 @@ var _spawn_timer := 0.0
 var _shake := 0.0
 var _origin := Vector2.ZERO ## where the map sits on screen (centered; the table fills the rest)
 var _autotest := false
+var _introduced := {} ## enemy kinds seen this run
 
 
 func _ready() -> void:
@@ -188,6 +189,9 @@ func _add_building(kind: String, pos: Vector2, size: Vector2) -> Building:
 
 func _spawn_enemy(kind: String) -> Unit:
 	var road: PackedVector2Array = paper.roads.pick_random()
+	if kind == "flyer":
+		# crows ignore the roads: a straight line from anywhere along the top
+		road = PackedVector2Array([Vector2(randf_range(50, 310), -12), Paper.KEEP_POS])
 	var u: Unit = UnitScript.new()
 	u.team = Unit.Team.ENEMY
 	u.setup(kind)
@@ -197,6 +201,11 @@ func _spawn_enemy(kind: String) -> Unit:
 	units.add_child(u)
 	u.died.connect(_on_unit_died)
 	u.reached_keep.connect(_on_reached_keep)
+	u.gnawed.connect(func(p: Vector2): fold.tear_at(p))
+	if not _introduced.has(kind):
+		_introduced[kind] = true
+		if kind != "grunt":
+			Events.enemy_introduced.emit(kind)
 	if kind == "ram":
 		Events.boss_spawned.emit()
 		Events.banner.emit("THE SIEGE RAM!")
@@ -247,6 +256,9 @@ func _spawn_knight(b: Building) -> Unit:
 
 
 func _on_unit_died(u: Unit) -> void:
+	if u.escaped:
+		_check_wave_end.call_deferred()
+		return
 	if u.team == Unit.Team.ENEMY:
 		kills += 1
 		_set_ink(ink + Waves.REWARDS.get(u.kind, 1) + (1 if Decrees.has("royal_treasury") else 0))

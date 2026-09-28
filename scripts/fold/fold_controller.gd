@@ -40,6 +40,7 @@ var _mat: ShaderMaterial
 var _preview: Array = []
 var _preview_tears: Array[Vector2] = []
 var _pulse := 0.0
+var _pins_drawn := false
 ## Scripted tests drive the fold directly; ignore the real mouse so it can't interfere.
 var _scripted := Array(OS.get_cmdline_user_args()).any(func(a: String) -> bool: return a.begins_with("--autotest"))
 
@@ -61,6 +62,12 @@ func _process(delta: float) -> void:
 		_update_preview()
 	if not holes.is_empty():
 		_swallow()
+	var pins := planted_pins()
+	if not pins.is_empty() or _pins_drawn:
+		_pins_drawn = not pins.is_empty()
+		if state != State.DRAGGING:
+			_pulse += delta
+		queue_redraw()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -81,6 +88,10 @@ func begin_fold(pos: Vector2) -> bool:
 		return false
 	var g := _snap_to_edge(pos)
 	if not g.is_finite():
+		return false
+	var pin := pin_at(g)
+	if pin:
+		pin.refuse()
 		return false
 	grab = g
 	pointer = g
@@ -120,6 +131,19 @@ func release() -> void:
 	tw.tween_callback(_unfold.bind(UNFOLD_TIME))
 
 
+## Pin-Bearers whose nail is in: [Unit]. Folds can't be grabbed near their corners.
+func planted_pins() -> Array:
+	return get_tree().get_nodes_in_group("enemy").filter(func(u): return u.kind == "pinner" and u.is_alive() and u.planted)
+
+
+## The pin that blocks grabbing the map at `g`, or null.
+func pin_at(g: Vector2) -> Unit:
+	for u in planted_pins():
+		if g.distance_to(u.corner) < Unit.PIN_RADIUS:
+			return u
+	return null
+
+
 ## Every unit affected by a slam along this fold, as [{unit, outcome, pos, target}].
 func compute_outcomes(m: Vector2, n: Vector2) -> Array:
 	var out: Array = []
@@ -130,7 +154,7 @@ func compute_outcomes(m: Vector2, n: Vector2) -> Array:
 		var q := FoldMath.mirror(pos, m, n)
 		var on_flap := FoldMath.side(pos, m, n) > 0.0
 		var entry := {"unit": u, "pos": pos, "target": q}
-		if not _in_map(q):
+		if not _in_map(q, 0.0 if on_flap else 2.0):
 			# On a flap so big its far end hangs off the map: flung off the table
 			# (bosses are too heavy to fling).
 			if on_flap and not u.is_boss():
@@ -311,6 +335,14 @@ static func _intersect(m1: Vector2, n1: Vector2, m2: Vector2, n2: Vector2) -> Ve
 	return Vector2(c1 * n2.y - n1.y * c2, n1.x * c2 - c1 * n2.x) / det
 
 
+## Rip the map open at `p` (an Ink Imp gnawed through). False if it can't tear there.
+func tear_at(p: Vector2) -> bool:
+	if KEEP_ZONE.has_point(p) or holes.size() >= MAX_HOLES:
+		return false
+	_tear(p)
+	return true
+
+
 func _tear(p: Vector2) -> void:
 	if holes.size() >= MAX_HOLES:
 		return
@@ -334,7 +366,7 @@ func _tear(p: Vector2) -> void:
 func _swallow() -> void:
 	var changed := false
 	for u in get_tree().get_nodes_in_group("unit"):
-		if not u.is_alive():
+		if not u.is_alive() or u.is_flying():
 			continue
 		for h in holes:
 			if h.left > 0 and u.position.distance_to(h.pos) < h.r * 0.8:
@@ -368,6 +400,17 @@ func _apply_holes() -> void:
 
 func _draw() -> void:
 	var pulse := 0.5 + 0.5 * sin(_pulse * 12.0)
+	# pinned corners: the edges there can't be grabbed
+	for u in planted_pins():
+		var c: Vector2 = u.corner
+		var d := Unit.inward(c)
+		var col := Color(Palette.RED, 0.45 + 0.25 * sin(_pulse * 4.0))
+		for axis in [Vector2(d.x, 0), Vector2(0, d.y)]:
+			var start: Vector2 = c + (d - axis) * 2.5
+			draw_line(start, start + axis * Unit.PIN_RADIUS, col, 3.0)
+		var from := atan2(0.0, d.x)
+		var arc := PI * 0.5 * d.x * d.y
+		draw_arc(c, Unit.PIN_RADIUS, from, from + arc, 20, Color(Palette.RED, 0.3), 1.0)
 	# how many more units each tear can swallow
 	for h in holes:
 		for i in h.left:
@@ -428,8 +471,9 @@ func _local(screen_pos: Vector2) -> Vector2:
 	return get_parent().to_local(screen_pos) if get_parent() is Node2D else screen_pos
 
 
-func _in_map(p: Vector2) -> bool:
-	return p.x >= 0.0 and p.y >= 0.0 and p.x < map_size.x and p.y < map_size.y
+## `slack` forgives rounding: a unit right under the pointer mirrors onto the grab point, on the edge.
+func _in_map(p: Vector2, slack := 0.0) -> bool:
+	return p.x >= -slack and p.y >= -slack and p.x < map_size.x + slack and p.y < map_size.y + slack
 
 
 func _heavy_building_at(p: Vector2, margin := 0.0) -> Node:

@@ -77,7 +77,7 @@ A unit on the flap whose mirrored spot falls **off the map** is **flung off the 
 "OFF THE MAP!", gold arrow in the aim preview). Happens with big diagonal folds. Bosses can't be flung.
 `Unit.is_boss()`, `Unit.is_flying()` exist.
 
-### Fold-aware enemies (planned, task #22) — enemies that fight the MAP
+### Fold-aware enemies (done, task #22b) — enemies that fight the MAP
 | Enemy | Kind id | Behavior |
 |---|---|---|
 | Pin-Bearer | `pinner` | Leaves the road, walks to the nearest map **corner** and hammers in a giant nail. While he lives, folds can't be grabbed within ~140 px of that corner (grab is refused with a red shake/flash on the pin). Doesn't attack the Keep. 2 slaps or a crush kill him. Reward 3. From wave 3. |
@@ -85,6 +85,11 @@ A unit on the flap whose mirrored spot falls **off the map** is **flung off the 
 | Ink Imp | `imp` | Runs off-road to a random spot and gnaws the paper (visible progress ring, ~4 s). If it finishes, the map **tears** there (same holes as wear & tear). Killing it cancels. From wave 5. |
 Each first appearance emits `Events.enemy_introduced(kind)` (Helper #21 shows the card).
 Sprites: `assets/sprites/units/enemy_pinner.png`, `enemy_flyer.png`, `enemy_imp.png` (placeholder draw until they land).
+As built: the pin zone is drawn by `FoldController` (red edge bands + arc); `FoldController.pin_at(g)`
+refuses grabs, `Unit.refuse()` shakes the nail. A flipped Pin-Bearer loses his nail and walks back to
+re-hammer it; a flipped imp restarts gnawing. The imp prefers spots next to your buildings (70%), tears
+via `FoldController.tear_at(p)`, then dives into its hole (`Unit.escaped`, no ink). Flyers ignore holes
+and knights. SFX names: `pin`, `pin_block`. Test: `scenes/tests/enemies_test.tscn`.
 
 ### 12-wave run (planned, task #22)
 12 waves (~15 min). Mid-boss at **wave 6** (Iron Warlord, triggers a Duel), final boss at **wave 12**
