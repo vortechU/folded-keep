@@ -21,6 +21,7 @@ boot_splash/bg_color=Color(0.164706, 0.113725, 0.0784314, 1)
 
 _mcp_game_helper="*res://addons/godot_ai/runtime/game_helper.gd"
 Events="*res://scripts/autoload/events.gd"
+Audio="*res://scripts/autoload/audio.gd"
 
 [display]
 

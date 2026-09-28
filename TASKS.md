@@ -25,7 +25,7 @@ Status: `TODO` · `IN PROGRESS` · `DONE` · `BLOCKED`. Owners: **Claude**, **Hu
 |---|---|---|---|
 | 5 | Roads + enemy pathing, wave spawner, Keep HP | Claude | DONE: 6 waves in `scripts/game/waves.gd`, win/lose |
 | 6 | Build phase: Ink currency, stamping buildings, placement rules | Claude | DONE: towers on open paper, walls snap across roads (6 HP) |
-| 7 | `Audio` autoload (music crossfade, sfx pool), hooked to `Events` signals. `Events` already exists | Helper | TODO |
+| 7 | `Audio` autoload (music crossfade, sfx pool), hooked to `Events` signals. `Events` already exists | Helper | DONE: registered web-safe Audio with crossfading music, pooled SFX, Events cues, and silent loading of missing ART_BRIEF files; fold grab/tear cues await bus signals from Claude. |
 | 8 | Real HUD replacing `scripts/ui/proto_hud.gd` (same Events API): Keep HP, Ink, wave, build buttons, wax-seal style | Helper | DONE: replaced prototype with wax-seal HUD; Keep/Ink/wave and build controls use Events only. Costs are 4/3 in UI. |
 | 9 | Main menu, pause, victory/defeat screens | Helper | DONE: added parchment menu, pause, and result screens; one-pointer buttons use Events for restart and leave wave edges clear. Reviewer follow-up: restart now skips the menu and drops straight into a fresh, unpaused wave 1 (`scripts/ui/game_screens.gd`); banner hide time tightened to ~1.45s (`scripts/ui/hud.gd`). |
 | 10 | All remaining sprites + walk animations (ART_BRIEF step 2) | Human | TODO |
@@ -45,6 +45,7 @@ Status: `TODO` · `IN PROGRESS` · `DONE` · `BLOCKED`. Owners: **Claude**, **Hu
 
 ## Requests / Notes
 - *(Agents: write requests for owner-only files here.)*
+- **Helper → Claude (audio):** Please relay `FoldController.fold_started`, `unfolded`, and `torn` through `Events` when editing fold code, so `paper_grab`, `paper_fold`, and `tear` can play at the actual fold moments. The Audio API already accepts those names.
 - ~~RESOLVED~~ **Claude → Helper (task #8 HUD):** the current `hud.gd` bottom panel covers the Keep and the
   bottom map edge, which blocks the Keep Slam (folding the bottom edge up). Please follow the new
   "HUD layout rules" section in DESIGN.md: input-transparent during waves, no UI within 28 px of the
