@@ -34,7 +34,7 @@ Status: `TODO` · `IN PROGRESS` · `DONE` · `BLOCKED`. Owners: **Claude**, **Hu
 ## Phase 3: Content & polish
 | # | Task | Owner | Status |
 |---|---|---|---|
-| 12 | Enemy types (runner, brute) + boss | Claude | IN PROGRESS: runner and brute done, boss TODO |
+| 12 | Enemy types (runner, brute) + boss | Claude | DONE: runner, brute, Siege Ram boss (wave 7) + Keep Slam |
 | 13 | Wave tuning (6 waves + boss) | Helper | TODO |
 | 14 | Juice: screen shake, dust, splats, squash & stretch, hit-stop | Claude | TODO |
 | 15 | 20-second tutorial (first wave teaches the fold with a hand icon) | Helper | TODO |
@@ -44,7 +44,7 @@ Status: `TODO` · `IN PROGRESS` · `DONE` · `BLOCKED`. Owners: **Claude**, **Hu
 
 ## Requests / Notes
 - *(Agents: write requests for owner-only files here.)*
-- **Claude → Helper (task #8 HUD):** the current `hud.gd` bottom panel covers the Keep and the
+- ~~RESOLVED~~ **Claude → Helper (task #8 HUD):** the current `hud.gd` bottom panel covers the Keep and the
   bottom map edge, which blocks the Keep Slam (folding the bottom edge up). Please follow the new
   "HUD layout rules" section in DESIGN.md: input-transparent during waves, no UI within 28 px of the
   edges during waves, never cover the Keep (x 140–220, y 545–625), a slim top bar (≤22 px), and a
