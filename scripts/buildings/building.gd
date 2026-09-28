@@ -10,6 +10,12 @@ extends Node2D
 
 signal destroyed(building: Building)
 
+## Painted sprites (see ART_BRIEF.md). Kinds without one use the placeholder drawing below.
+const SPRITE_DIR := "res://assets/sprites/buildings/"
+## On-map width of each sprite in base pixels (height follows the image).
+const SPRITE_WIDTH := {"keep": 84.0, "tower": 30.0, "wall": 38.0, "barracks": 34.0}
+static var _textures := {}
+
 var hp := 0
 ## Barracks: its knights and the respawn timer (driven by main.gd).
 var squad: Array[Node] = []
@@ -68,8 +74,26 @@ func damage(amount: int) -> void:
 		tw.tween_callback(queue_free)
 
 
+static func sprite_for(k: String) -> Texture2D:
+	if not _textures.has(k):
+		var path := SPRITE_DIR + k + ".png"
+		_textures[k] = load(path) if ResourceLoader.exists(path) else null
+	return _textures[k]
+
+
 func _draw() -> void:
 	var h := size * 0.5
+	var tex := sprite_for(kind)
+	if tex:
+		# soft ink shadow so stone doesn't melt into the parchment, then the sprite standing on
+		# the bottom of its footprint
+		draw_set_transform(Vector2(2, h.y - 1), 0.0, Vector2(1.0, 0.4))
+		draw_circle(Vector2.ZERO, maxf(size.x, size.y) * 0.5, Color(Palette.INK, 0.24))
+		draw_set_transform(Vector2.ZERO)
+		var w: float = SPRITE_WIDTH.get(kind, size.x)
+		var s := tex.get_size() * (w / tex.get_size().x)
+		draw_texture_rect(tex, Rect2(Vector2(-s.x * 0.5, h.y + 3.0 - s.y), s), false)
+		return
 	draw_rect(Rect2(-h + Vector2(2, 3), size), Color(0, 0, 0, 0.12))
 	match kind:
 		"keep":

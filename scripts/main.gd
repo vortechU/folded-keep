@@ -46,7 +46,7 @@ func _ready() -> void:
 	Events.start_wave_requested.connect(_start_wave)
 	Events.restart_requested.connect(func(): get_tree().reload_current_scene())
 
-	_add_building("keep", Paper.KEEP_POS + Vector2(0, 10), Vector2(56, 40))
+	_add_building("keep", Paper.KEEP_POS + Vector2(0, 10), Vector2(76, 44))
 	_add_building("tower", Vector2(45, 250), Vector2(22, 22))
 	_add_building("tower", Vector2(315, 400), Vector2(22, 22))
 
