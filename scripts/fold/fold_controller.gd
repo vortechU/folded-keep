@@ -87,6 +87,7 @@ func begin_fold(pos: Vector2) -> bool:
 	lift = 1.0
 	state = State.DRAGGING
 	Engine.time_scale = DRAG_TIME_SCALE
+	Audio.play_sfx("paper_grab")
 	fold_started.emit()
 	drag_to(pos)
 	return true
@@ -111,6 +112,7 @@ func release() -> void:
 		_unfold(0.1)
 		return
 	state = State.BUSY
+	Audio.play_sfx("paper_fold")
 	var tw := create_tween()
 	tw.tween_method(_set_lift, lift, 0.0, SLAM_TIME).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
 	tw.tween_callback(_impact)
@@ -285,6 +287,7 @@ func _tear(p: Vector2) -> void:
 		fx.droplets(p, Palette.PARCHMENT_SHADOW, 10, 1.2)
 		fx.text(p + Vector2(0, -22), "RIIIP!", Palette.PARCHMENT, true)
 	_apply_holes()
+	Audio.play_sfx("tear")
 	torn.emit(p)
 
 
