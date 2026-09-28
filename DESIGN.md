@@ -43,7 +43,7 @@ hits whatever lies underneath. Your castle layout *is* your arsenal.
    Reaching the Keep damages it. Keep HP 0 = defeat.
 7. **Build phase** between waves: spend **Ink** (earned from kills) to stamp buildings on
    non-road paper.
-8. **Waves:** 6 waves, then a 7th boss wave. Survive all of them = victory. Endless mode is a stretch goal.
+8. **Waves:** 12 waves (mid-boss at 6, final boss at 12, see "12-wave run"). Survive all of them = victory. Endless mode is a stretch goal.
 
 ### HUD layout rules (the map is the whole screen, so UI must not block folding)
 - The map's **edges are the controls**. During a wave, no UI may block input within 28 px of any
@@ -66,7 +66,8 @@ hits whatever lies underneath. Your castle layout *is* your arsenal.
 | Grunt | Walks the road. 1 slap stuns, any crush kills. |
 | Runner | Fast, fragile. Dies from a slap too. |
 | Brute | Slow. Slaps do nothing; only a crush kills. |
-| Boss: Siege Ram | Wave 7 (final). Needs 3 crushes, ignores slaps, breaks walls in one hit, deals 5 Keep damage. Flipping it throws it back up the road. |
+| Mid-boss: Iron Warlord (`warlord`) | Wave 6. Needs 2 crushes, ignores slaps, hacks walls (4/hit), knights can't kill him, deals 4 Keep damage, 8 ink. |
+| Boss: Siege Ram | Wave 12 (final). Needs 3 crushes, ignores slaps, breaks walls in one hit, deals 5 Keep damage. Flipping it throws it back up the road. |
 
 ### Royal Decrees (done)
 After each cleared wave the King offers 3 of 12 decrees (`scripts/game/decrees.gd`), pick 1, it lasts
@@ -91,10 +92,11 @@ re-hammer it; a flipped imp restarts gnawing. The imp prefers spots next to your
 via `FoldController.tear_at(p)`, then dives into its hole (`Unit.escaped`, no ink). Flyers ignore holes
 and knights. SFX names: `pin`, `pin_block`. Test: `scenes/tests/enemies_test.tscn`.
 
-### 12-wave run (planned, task #22)
+### 12-wave run (done, task #22c)
 12 waves (~15 min). Mid-boss at **wave 6** (Iron Warlord, triggers a Duel), final boss at **wave 12**
 (Siege Ram + its driver, Duel first). Decree after every wave. New enemies ramp in (runner 3,
-brute 4, pinner 3, flyer 4, imp 5...). Retune `waves.gd` after.
+brute 4, pinner 3, flyer 4, imp 5...). As built: `Waves.LIST`, bosses + their banners in `Waves.BOSSES`
+(the boss enters 5th in its wave's queue). Test: `scenes/tests/run_test.tscn` fast-forwards a whole run.
 
 ### Duel of Champions (planned, task #23) — first-person boss duel
 When a boss arrives the map freezes and a full-screen **first-person** duel starts (portrait):

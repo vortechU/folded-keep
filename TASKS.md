@@ -50,7 +50,7 @@ Status: `TODO` · `IN PROGRESS` · `DONE` · `BLOCKED`. Owners: **Claude**, **Hu
 | 21 | **New enemy intro card.** On `Events.enemy_introduced(kind)` show a short card for ~3 s (or until tapped) with the enemy name + one-line tip. Texts: `pinner` "PIN-BEARER — Nails a corner of the map. You can't fold near him until he's gone.", `flyer` "CROW RIDER — Flies over walls. Can't be crushed: flip it, or fling it off the map!", `imp` "INK IMP — Gnaws the paper. If it finishes, the map tears.". Must not block folding (mouse_filter IGNORE, tap-to-dismiss via `_input` without consuming). | Helper | DONE: added queued three-second, tap-dismissable enemy notes in `scripts/ui/enemy_intro.gd`; pointer events still reach folding. |
 | 22a | Decree effects + fling-off-map rule | Claude | DONE: all 12 decrees work (test `scenes/tests/decree_test.tscn`); fling = gold arrow preview |
 | 22b | Fold-aware enemies: pinner, flyer, imp (spec in DESIGN.md) + `enemy_introduced` | Claude | DONE: behaviors in `unit.gd`, pin blocking + `tear_at` in `fold_controller.gd`; units right under the pointer are now always hit (2 px slack). Test: `scenes/tests/enemies_test.tscn` |
-| 22c | 12-wave run with mid-boss at wave 6 (spec in DESIGN.md), retune waves.gd | Claude | TODO (after 22b) |
+| 22c | 12-wave run with mid-boss at wave 6 (spec in DESIGN.md), retune waves.gd | Claude | DONE: 12 waves in `waves.gd`, Iron Warlord (`warlord`, 2 crushes) leads wave 6, Siege Ram wave 12. Test: `scenes/tests/run_test.tscn` (full run, decree picks, both bosses) |
 | 23 | Duel of Champions: first-person boss duel (spec in DESIGN.md) | Claude | TODO (after 22c) |
 
 ## Requests / Notes

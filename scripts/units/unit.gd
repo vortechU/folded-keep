@@ -21,6 +21,8 @@ const KINDS := {
 	"pinner": {"speed": 20.0, "slaps": 2, "slap_immune": false, "size": 1.3, "hp": 4, "hit": 1},
 	"flyer": {"speed": 19.0, "slaps": 99, "slap_immune": true, "size": 1.0, "hp": 99, "hit": 1},
 	"imp": {"speed": 32.0, "slaps": 1, "slap_immune": false, "size": 0.8, "hp": 2, "hit": 1},
+	# mid-boss (wave 6): two crushes, shrugs off slaps, cleaves knights and walls
+	"warlord": {"speed": 9.0, "slaps": 99, "slap_immune": true, "size": 1.9, "crushes": 2, "hp": 9999, "hit": 3},
 }
 ## Pin-Bearer: folds can't be grabbed this close to the corner he nails down.
 const PIN_RADIUS := 140.0
@@ -34,6 +36,7 @@ const SPRITES := {
 	"grunt": ["enemy_grunt", 14.0], "runner": ["enemy_runner", 17.0], "brute": ["enemy_brute", 22.0],
 	"ram": ["boss_siege_ram", 40.0], "knight": ["ally_knight", 15.0],
 	"pinner": ["enemy_pinner", 17.0], "flyer": ["enemy_flyer", 24.0], "imp": ["enemy_imp", 13.0],
+	"warlord": ["boss_warlord", 30.0],
 }
 static var _textures := {}
 const MELEE := 9.0 ## knights engage within this distance
@@ -142,7 +145,7 @@ func _process(delta: float) -> void:
 		_attack_cd -= delta
 		if _attack_cd <= 0.0:
 			_attack_cd = ATTACK_INTERVAL
-			wall.damage({"brute": 3, "ram": 6}.get(kind, 1))
+			wall.damage({"brute": 3, "ram": 6, "warlord": 4}.get(kind, 1))
 		return
 	if to.length() < 3.0:
 		path_index += 1
@@ -504,6 +507,9 @@ func _draw() -> void:
 		"flyer":
 			_draw_flyer()
 			return
+		"warlord":
+			_draw_warlord()
+			return
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE * _size)
 	var fill := Palette.RED if team == Team.ENEMY else Palette.BLUE
 	if kind == "runner" or kind == "imp":
@@ -643,14 +649,56 @@ func _draw_sprite(tex: Texture2D) -> void:
 	if kind == "pinner" and not planted and _hammer > 0.0:
 		_draw_mallet(0.0)
 		draw_set_transform(Vector2.ZERO)
-	if kind == "ram":
-		for i in crushes_to_kill:
-			draw_circle(Vector2(-5 + i * 5, -s.y - 4), 2.0, Palette.INK)
-			draw_circle(Vector2(-5 + i * 5, -s.y - 4), 1.2, Palette.RED_LIGHT)
+	if is_boss():
+		_draw_pips(-s.y - 4)
 	if not walking:
 		for i in 3:
 			var a := _t * 6.0 + i * TAU / 3.0
 			draw_circle(Vector2(cos(a) * w * 0.45, -s.y - 1.0 - lift + sin(a) * 2.0), 1.1, Palette.GOLD)
+
+
+## Crushes a boss still needs, as red pips over its head.
+func _draw_pips(y: float) -> void:
+	for i in crushes_to_kill:
+		var x := (i - (crushes_to_kill - 1) * 0.5) * 5.0
+		draw_circle(Vector2(x, y), 2.0, Palette.INK)
+		draw_circle(Vector2(x, y), 1.2, Palette.RED_LIGHT)
+
+
+## Iron Warlord placeholder: a hulking armored figure with a horned helm and a great axe.
+func _draw_warlord() -> void:
+	var walking := stun <= 0.0
+	var bob := absf(sin(_t * 5.0)) * 1.2 if walking else 0.0
+	var iron := Color("#5d5f68") if _flash <= 0.0 else Palette.PARCHMENT
+	draw_set_transform(Vector2(0, 4), 0.0, Vector2(1.0, 0.4))
+	draw_circle(Vector2.ZERO, 12.0, Color(Palette.INK, 0.25))
+	draw_set_transform(Vector2(0, -bob), 0.0, Vector2(_face, 1.0))
+	# cape, legs, armored body
+	draw_colored_polygon(PackedVector2Array([Vector2(-8, -14), Vector2(8, -14), Vector2(10, 2), Vector2(-10, 2)]), Palette.RED)
+	draw_rect(Rect2(-6, -2, 4, 6), Palette.INK)
+	draw_rect(Rect2(2, -2, 4, 6), Palette.INK)
+	draw_rect(Rect2(-8, -16, 16, 15), Palette.INK)
+	draw_rect(Rect2(-6.5, -14.5, 13, 12), iron)
+	draw_line(Vector2(-6, -9), Vector2(6, -9), Palette.INK, 1.0)
+	# pauldrons
+	draw_circle(Vector2(-8, -15), 3.5, Palette.INK)
+	draw_circle(Vector2(8, -15), 3.5, Palette.INK)
+	# horned great helm with a visor slit
+	draw_circle(Vector2(0, -21), 5.5, Palette.INK)
+	draw_circle(Vector2(0, -21), 4.3, iron)
+	draw_rect(Rect2(-3, -22, 6, 1.5), Palette.RED_LIGHT)
+	for sx in [-1.0, 1.0]:
+		draw_colored_polygon(PackedVector2Array([Vector2(sx * 3.5, -24), Vector2(sx * 10.0, -30), Vector2(sx * 5.0, -21)]), Palette.PARCHMENT_MID)
+	# great axe
+	draw_line(Vector2(11, -26), Vector2(11, 4), Palette.SEPIA, 2.0)
+	draw_colored_polygon(PackedVector2Array([Vector2(11, -26), Vector2(18, -30), Vector2(19, -18), Vector2(11, -20)]), Palette.INK)
+	draw_colored_polygon(PackedVector2Array([Vector2(12, -25), Vector2(17, -28), Vector2(17.5, -19.5), Vector2(12, -21)]), iron)
+	draw_set_transform(Vector2.ZERO)
+	_draw_pips(-36.0)
+	if not walking:
+		for i in 3:
+			var a := _t * 6.0 + i * TAU / 3.0
+			draw_circle(Vector2(cos(a) * 11.0, -34.0 + sin(a) * 3.0), 1.3, Palette.GOLD)
 
 
 func _draw_ram() -> void:
@@ -669,10 +717,7 @@ func _draw_ram() -> void:
 	# ram log pointing down the road
 	draw_rect(Rect2(-2.5, 6 - bob, 5, 10), Palette.SEPIA)
 	draw_rect(Rect2(-3.5, 14 - bob, 7, 4), Palette.INK)
-	# crush pips
-	for i in crushes_to_kill:
-		draw_circle(Vector2(-5 + i * 5, -17), 2.0, Palette.INK)
-		draw_circle(Vector2(-5 + i * 5, -17), 1.2, Palette.RED_LIGHT)
+	_draw_pips(-17.0)
 	if not walking:
 		for i in 3:
 			var a := _t * 6.0 + i * TAU / 3.0

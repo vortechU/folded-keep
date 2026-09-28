@@ -92,7 +92,12 @@ func _start_wave() -> void:
 	_spawn_timer = 0.5
 	Events.wave_changed.emit(wave + 1, Waves.LIST.size())
 	Events.phase_changed.emit("wave")
-	Events.banner.emit("FINAL WAVE" if Waves.LIST[wave].get("boss", false) else "WAVE %d" % (wave + 1))
+	if wave == Waves.LIST.size() - 1:
+		Events.banner.emit("FINAL WAVE")
+	elif Waves.LIST[wave].get("boss", false):
+		Events.banner.emit("WAVE %d\nA CHAMPION APPROACHES" % (wave + 1))
+	else:
+		Events.banner.emit("WAVE %d" % (wave + 1))
 
 
 func _check_wave_end() -> void:
@@ -206,9 +211,9 @@ func _spawn_enemy(kind: String) -> Unit:
 		_introduced[kind] = true
 		if kind != "grunt":
 			Events.enemy_introduced.emit(kind)
-	if kind == "ram":
+	if Waves.BOSSES.has(kind):
 		Events.boss_spawned.emit()
-		Events.banner.emit("THE SIEGE RAM!")
+		Events.banner.emit(Waves.BOSSES[kind])
 	return u
 
 
