@@ -27,6 +27,18 @@ func _ready() -> void:
 		_trees.append(p.round())
 
 
+## Closest point on any road: {"point", "dir" (road direction), "dist"}.
+func closest_road(p: Vector2) -> Dictionary:
+	var best := {"point": Vector2.ZERO, "dir": Vector2.DOWN, "dist": INF}
+	for r in roads:
+		for i in r.size() - 1:
+			var c := Geometry2D.get_closest_point_to_segment(p, r[i], r[i + 1])
+			var d := c.distance_to(p)
+			if d < best.dist:
+				best = {"point": c, "dir": (r[i + 1] - r[i]).normalized(), "dist": d}
+	return best
+
+
 func _near_road(p: Vector2, dist: float) -> bool:
 	for r in roads:
 		for i in r.size() - 1:

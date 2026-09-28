@@ -8,7 +8,16 @@ signal reached_keep(unit: Unit)
 
 enum Team { ENEMY, ALLY }
 
+const KINDS := {
+	"grunt": {"speed": 16.0, "slaps": 2, "slap_immune": false, "size": 1.0},
+	"runner": {"speed": 30.0, "slaps": 1, "slap_immune": false, "size": 0.85},
+	"brute": {"speed": 9.0, "slaps": 99, "slap_immune": true, "size": 1.5},
+	"knight": {"speed": 18.0, "slaps": 2, "slap_immune": false, "size": 1.0},
+}
+const ATTACK_INTERVAL := 1.0
+
 @export var team := Team.ENEMY
+@export var kind := "grunt"
 @export var speed := 16.0
 @export var slaps_to_kill := 2
 @export var slap_immune := false
@@ -19,6 +28,18 @@ var stun := 0.0
 
 var _alive := true
 var _t := 0.0
+var _size := 1.0
+var _attack_cd := 0.0
+
+
+## Apply the stats of a kind from KINDS. Call before adding to the tree.
+func setup(unit_kind: String) -> void:
+	kind = unit_kind
+	var k: Dictionary = KINDS[kind]
+	speed = k.speed * randf_range(0.9, 1.1)
+	slaps_to_kill = k.slaps
+	slap_immune = k.slap_immune
+	_size = k.size
 
 
 func _ready() -> void:
@@ -43,6 +64,13 @@ func _process(delta: float) -> void:
 		return
 	var target := path[path_index]
 	var to := target - position
+	var wall := _blocking_wall(to.normalized())
+	if wall:
+		_attack_cd -= delta
+		if _attack_cd <= 0.0:
+			_attack_cd = ATTACK_INTERVAL
+			wall.damage(3 if kind == "brute" else 1)
+		return
 	if to.length() < 3.0:
 		path_index += 1
 		if path_index >= path.size() and team == Team.ENEMY:
@@ -51,6 +79,16 @@ func _process(delta: float) -> void:
 			queue_free()
 		return
 	position += to.normalized() * speed * delta
+
+
+func _blocking_wall(dir: Vector2) -> Node:
+	if team != Team.ENEMY:
+		return null
+	var ahead := position + dir * 7.0 * _size
+	for b in get_tree().get_nodes_in_group("building"):
+		if b.kind == "wall" and b.contains_point(ahead):
+			return b
+	return null
 
 
 func on_crushed() -> void:
@@ -103,7 +141,10 @@ func on_flipped(to: Vector2) -> void:
 
 
 func _draw() -> void:
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE * _size)
 	var fill := Palette.RED if team == Team.ENEMY else Palette.BLUE
+	if kind == "runner":
+		fill = Palette.RED_LIGHT
 	var walking := stun <= 0.0
 	var bob := absf(sin(_t * 9.0)) * 1.5 if walking else 0.0
 	draw_circle(Vector2(0, 3), 4.0, Color(0, 0, 0, 0.15))

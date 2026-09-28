@@ -20,6 +20,7 @@ const UNFOLD_TIME := 0.22
 const MAX_CREASES := 16
 
 var map_size := Vector2(360, 640)
+var enabled := true
 var state := State.IDLE
 var grab := Vector2.ZERO
 var pointer := Vector2.ZERO
@@ -55,7 +56,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 ## Returns true if the press was close enough to an edge to start a fold.
 func begin_fold(pos: Vector2) -> bool:
-	if state != State.IDLE:
+	if state != State.IDLE or not enabled:
 		return false
 	var g := _snap_to_edge(pos)
 	if not g.is_finite():
