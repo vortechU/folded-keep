@@ -1,6 +1,8 @@
 extends Control
 ## Parchment HUD. Gameplay state and requests pass exclusively through Events.
 
+const ScreensScene := preload("res://scenes/ui/game_screens.tscn")
+
 const PANEL := Color("#2A1D14")
 const WAX := Color("#A8322D")
 const WAX_LIT := Color("#C64B3D")
@@ -52,6 +54,7 @@ func _ready() -> void:
 	Events.phase_changed.connect(_on_phase_changed)
 	Events.banner.connect(_show_banner)
 	_refresh()
+	add_child(ScreensScene.instantiate())
 
 
 func _draw() -> void:
@@ -195,6 +198,6 @@ func _show_banner(message: String) -> void:
 	if message.contains("\n"):
 		return
 	_banner_tween = create_tween()
-	_banner_tween.tween_interval(1.4)
+	_banner_tween.tween_interval(1.1)
 	_banner_tween.tween_property(_banner_panel, "modulate:a", 0.0, 0.35)
 	_banner_tween.tween_callback(func() -> void: _banner_panel.visible = false)
