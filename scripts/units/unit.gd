@@ -17,6 +17,13 @@ const KINDS := {
 	"ram": {"speed": 7.0, "slaps": 99, "slap_immune": true, "size": 2.2, "crushes": 3, "hp": 9999, "hit": 3},
 }
 const ATTACK_INTERVAL := 1.0
+## Painted sprites (ART_BRIEF.md) and their on-map width in base pixels. Kinds without a file
+## fall back to the placeholder drawing.
+const SPRITES := {
+	"grunt": ["enemy_grunt", 14.0], "runner": ["enemy_runner", 17.0], "brute": ["enemy_brute", 22.0],
+	"ram": ["boss_siege_ram", 40.0], "knight": ["ally_knight", 15.0],
+}
+static var _textures := {}
 const MELEE := 9.0 ## knights engage within this distance
 const AGGRO := 48.0 ## knights chase enemies this close to their post
 const LEASH := 70.0 ## ...but never further than this from it
@@ -44,6 +51,8 @@ var _t := 0.0
 var _size := 1.0
 var _attack_cd := 0.0
 var _flash := 0.0
+var _face := 1.0 ## 1 = facing right, -1 = mirrored
+var _last_x := 0.0
 
 
 ## Apply the stats of a kind from KINDS. Call before adding to the tree.
@@ -277,7 +286,22 @@ func on_flipped(to: Vector2) -> void:
 	tw.tween_property(self, "rotation", 0.0, 0.3)
 
 
+static func sprite_for(k: String) -> Texture2D:
+	if not _textures.has(k):
+		var path := "res://assets/sprites/units/%s.png" % SPRITES[k][0] if SPRITES.has(k) else ""
+		_textures[k] = load(path) if path != "" and ResourceLoader.exists(path) else null
+	return _textures[k]
+
+
 func _draw() -> void:
+	var dx := position.x - _last_x
+	if absf(dx) > 0.05:
+		_face = signf(dx)
+	_last_x = position.x
+	var tex := sprite_for(kind)
+	if tex:
+		_draw_sprite(tex)
+		return
 	if kind == "ram":
 		_draw_ram()
 		return
@@ -311,6 +335,31 @@ func _draw() -> void:
 		for i in 3:
 			var a := _t * 6.0 + i * TAU / 3.0
 			draw_circle(Vector2(cos(a) * 6.0, -12.0 + sin(a) * 2.0), 1.0, Palette.GOLD)
+
+
+func _draw_sprite(tex: Texture2D) -> void:
+	var walking := stun <= 0.0
+	var w: float = SPRITES[kind][1]
+	var s := tex.get_size() * (w / tex.get_size().x)
+	var step := sin(_t * (5.0 if kind == "ram" else 9.0))
+	var bob := absf(step) * (1.0 if kind == "ram" else 1.5) if walking else 0.0
+	# shadow at the feet
+	draw_set_transform(Vector2(1, 2), 0.0, Vector2(1.0, 0.35))
+	draw_circle(Vector2.ZERO, w * 0.42, Color(Palette.INK, 0.25))
+	# waddle around the feet, mirrored to face the walking direction
+	var waddle := step * 0.07 if walking and kind != "ram" else 0.0
+	draw_set_transform(Vector2(0, 3 - bob), waddle, Vector2(_face, 1.0))
+	var mod := Color(2.2, 2.2, 2.2) if _flash > 0.0 else Color.WHITE
+	draw_texture_rect(tex, Rect2(Vector2(-s.x * 0.5, -s.y), s), false, mod)
+	draw_set_transform(Vector2.ZERO)
+	if kind == "ram":
+		for i in crushes_to_kill:
+			draw_circle(Vector2(-5 + i * 5, -s.y - 4), 2.0, Palette.INK)
+			draw_circle(Vector2(-5 + i * 5, -s.y - 4), 1.2, Palette.RED_LIGHT)
+	if not walking:
+		for i in 3:
+			var a := _t * 6.0 + i * TAU / 3.0
+			draw_circle(Vector2(cos(a) * w * 0.45, -s.y - 1.0 + sin(a) * 2.0), 1.1, Palette.GOLD)
 
 
 func _draw_ram() -> void:

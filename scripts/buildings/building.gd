@@ -85,14 +85,22 @@ func _draw() -> void:
 	var h := size * 0.5
 	var tex := sprite_for(kind)
 	if tex:
+		var w: float = SPRITE_WIDTH.get(kind, size.x)
+		var s := tex.get_size() * (w / tex.get_size().x)
+		if kind == "wall":
+			# walls lie across the road (rotated), so the sprite is centered on the footprint
+			draw_rect(Rect2(-s * 0.5 + Vector2(1.5, 2.5), s), Color(Palette.INK, 0.22))
+			draw_texture_rect(tex, Rect2(-s * 0.5, s), false)
+			_draw_cracks(h)
+			return
 		# soft ink shadow so stone doesn't melt into the parchment, then the sprite standing on
 		# the bottom of its footprint
 		draw_set_transform(Vector2(2, h.y - 1), 0.0, Vector2(1.0, 0.4))
 		draw_circle(Vector2.ZERO, maxf(size.x, size.y) * 0.5, Color(Palette.INK, 0.24))
 		draw_set_transform(Vector2.ZERO)
-		var w: float = SPRITE_WIDTH.get(kind, size.x)
-		var s := tex.get_size() * (w / tex.get_size().x)
 		draw_texture_rect(tex, Rect2(Vector2(-s.x * 0.5, h.y + 3.0 - s.y), s), false)
+		if kind == "barracks":
+			_draw_squad_pips(h)
 		return
 	draw_rect(Rect2(-h + Vector2(2, 3), size), Color(0, 0, 0, 0.12))
 	match kind:
@@ -106,10 +114,7 @@ func _draw() -> void:
 			draw_rect(Rect2(1, -h.y - 14, 8, 5), Palette.BLUE)
 		"wall":
 			_block(Rect2(-h, size))
-			if max_hp > 0:
-				for i in max_hp - hp:
-					var x := -h.x + 4.0 + i * (size.x - 8.0) / max_hp
-					draw_line(Vector2(x, -h.y + 1), Vector2(x + 2, h.y - 1), Palette.PARCHMENT, 1.0)
+			_draw_cracks(h)
 		"barracks":
 			# a long hall with a pitched roof and a banner
 			draw_rect(Rect2(-h, size), Palette.INK)
@@ -121,8 +126,7 @@ func _draw() -> void:
 			draw_rect(Rect2(-3, h.y - 7, 6, 7), Palette.INK)
 			draw_line(Vector2(h.x - 3, -h.y), Vector2(h.x - 3, -h.y - 12), Palette.INK, 1.0)
 			draw_rect(Rect2(h.x - 2, -h.y - 12, 6, 4), Palette.BLUE_LIGHT)
-			for i in squad.size():
-				draw_circle(Vector2(-h.x + 5 + i * 5, h.y + 3), 1.5, Palette.BLUE)
+			_draw_squad_pips(h)
 		_:
 			draw_circle(Vector2.ZERO, h.x, Palette.INK)
 			draw_circle(Vector2.ZERO, h.x - 1.5, Palette.BLUE)
@@ -138,3 +142,19 @@ func _block(r: Rect2) -> void:
 	while x < r.end.x - 3.0:
 		draw_rect(Rect2(x, r.position.y - 3.0, 4, 4), Palette.INK)
 		x += 7.0
+
+
+## Damage shows as ink cracks across the wall.
+func _draw_cracks(h: Vector2) -> void:
+	if max_hp <= 0:
+		return
+	for i in max_hp - hp:
+		var x := -h.x + 4.0 + i * (size.x - 8.0) / max_hp
+		draw_polyline(PackedVector2Array([Vector2(x, -h.y), Vector2(x + 2, 0), Vector2(x, h.y)]), Palette.INK, 1.0)
+
+
+## One dot per living knight under the barracks.
+func _draw_squad_pips(h: Vector2) -> void:
+	for i in squad.size():
+		draw_circle(Vector2(-h.x + 5 + i * 5, h.y + 5), 1.8, Palette.INK)
+		draw_circle(Vector2(-h.x + 5 + i * 5, h.y + 5), 1.2, Palette.BLUE_LIGHT)
