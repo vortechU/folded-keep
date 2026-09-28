@@ -1,0 +1,108 @@
+# Folded Keep — Design & Tech Spec
+
+> **Source of truth.** Every agent (human or AI) reads this before touching the project.
+> If you change a rule, change it here too. Status: **v0.1 — fold prototype in progress.**
+
+## Pitch
+You defend your castle by **folding the map it's drawn on.** Drag any edge of the parchment
+inward to fold it, then let go: the flap **slams** face-down, and whatever is inked on the flap
+hits whatever lies underneath. Your castle layout *is* your arsenal.
+
+## Jam constraints (SlapJam AI #1)
+- 48h, **2026-09-28 → 2026-09-30**. Theme: **Castles**. Judged on **Fun, Visual Appeal, Theme**.
+- **Mobile portrait**, touch controls. **HTML5 web build** on itch.io. Made with AI.
+- Judges may play with a **mouse on desktop**. Every interaction must work with a single pointer.
+
+## The laws (core rules)
+1. **The map** is a 360×640 parchment. Terrain, roads, buildings and units are all "printed" on it.
+2. **Fold:** press within **28 px of a map edge** and drag inward. The fold line is the perpendicular
+   bisector of the grab point **G** and the pointer **P**. The **flap** is the side containing G.
+   Releasing after a drag shorter than 24 px cancels the fold.
+3. **Slam** (on release):
+   - A unit in the **landing zone** (under the flap) gets hit by what's printed on the flap at its
+     mirrored point:
+     - a **heavy** building (tower, wall, keep) → **CRUSHED** (killed, ink splat)
+     - blank paper → **SLAPPED** (stunned 1.5 s, knocked back)
+   - A unit **on the flap** whose mirrored point lands on the map is **flipped**: it's moved to
+     the mirrored position and stunned for 1 s. You can throw enemies around, but careful, you can
+     also throw them toward your Keep.
+   - **Friendly fire:** your own units follow exactly the same rules.
+   - Buildings are never damaged by folds. They are the hammer.
+   - **While dragging:** time slows to 45%, the flap turns translucent so you can aim through it,
+     and markers preview every outcome (red ✕ = crush, gold ring = slap, blue dashed arrow = flip).
+     The flap's back shows its ink faintly, mirrored, so you can see where the towers will land.
+   - Impact juice: hit-stop (70 ms + extra per crush) and screen shake. Crushed units leave
+     **permanent ink splats**, so the map remembers every battle.
+4. The map **unfolds automatically** 0.35 s after the slam.
+5. **Creases:** each slam leaves a visible crease line. *Wear & tear rule TBD after the prototype.
+   Leading candidate: slamming across 3+ existing creases tears the map and leaves a permanent
+   chasm. Things printed on the chasm are lost; units walking into it fall.*
+6. **Enemies** (red ink) walk the roads from the top edge toward the **Keep** (bottom center).
+   Reaching the Keep damages it. Keep HP 0 = defeat.
+7. **Build phase** between waves: spend **Ink** (earned from kills) to stamp buildings on
+   non-road paper.
+8. **Waves:** 6 waves, then a boss. Survive all of them = victory. Endless mode is a stretch goal.
+
+### Buildings (blue ink, player)
+| Building | Heavy? | Role |
+|---|---|---|
+| Keep | yes | Your castle. Fold the bottom edge up for a **Keep Slam** (huge area). Candidate cost: 1 Keep HP. |
+| Tower | yes | The basic hammer. Cheap. |
+| Wall | yes | Heavy *and* blocks the road. Enemies stop to bash it. |
+| Barracks | no | Spawns blue knights that fight enemies. Knights are vulnerable to your own folds. |
+
+### Enemies (red ink)
+| Enemy | Behavior |
+|---|---|
+| Grunt | Walks the road. 1 slap stuns, any crush kills. |
+| Runner | Fast, fragile. Dies from a slap too. |
+| Brute | Slow. Slaps do nothing; only a crush kills. |
+| Boss: Siege Ram | Needs 3 crushes. Cracks the Keep on arrival. |
+
+## Tech
+- **Godot 4.7.2**, **GL Compatibility** renderer (required for web), web export **without threads**
+  (no SharedArrayBuffer needed on itch).
+- **Resolution:** base viewport **360×640**, window **720×1280**, stretch mode `viewport`, aspect `keep`,
+  default texture filter **Nearest** (pixel art). Everything below is in base (360×640) pixels.
+- **Input:** handle **mouse events only**. `emulate_mouse_from_touch` is on, so touch works too.
+  Optional two-finger extras go in the `InputEventScreenTouch` handlers.
+
+### Scene architecture
+```
+Main (Node2D)                      scenes/main.tscn, scripts/main.gd
+├─ MapViewport (SubViewport 360×640)   ← everything "printed on the paper" lives here
+│  └─ World (Node2D)
+│     ├─ Paper      (parchment, roads, terrain decals)
+│     ├─ Buildings  (group "building")
+│     └─ Units      (groups "unit" + "enemy"/"ally")
+├─ MapDisplay (Sprite2D)          ← shows MapViewport texture through shaders/fold.gdshader
+├─ FoldController (Node)          ← scripts/fold/fold_controller.gd: input, fold math, slam
+└─ UI (CanvasLayer)               ← HUD, build menu, screens
+```
+- **Coordinates:** map space = SubViewport pixels = base-viewport pixels (the map sits at the origin).
+- **Fold math** (`scripts/fold/fold_math.gd`): line point `M = (G+P)/2`, normal `n = normalize(G-P)`,
+  flap = `dot(x-M, n) > 0`, `mirror(x) = x - 2·dot(x-M, n)·n`.
+
+### Contracts between systems
+- **Units** (`scripts/units/unit.gd`): `func on_crushed()`, `func on_slapped(dir: Vector2)`,
+  `func on_flipped(to: Vector2)`. Signal `died(unit)`.
+- **Buildings** (`scripts/buildings/building.gd`): `@export var heavy: bool`,
+  `func contains_point(p: Vector2) -> bool`.
+- **FoldController** signals: `fold_started`, `slammed(line_point: Vector2, normal: Vector2)`,
+  `unfolded`.
+- Game-wide events go through the autoload `Events` (signal bus). Audio goes through the `Audio`
+  autoload (`Audio.play_sfx("slam")`, `Audio.play_music("battle")`).
+
+## Folder layout & ownership
+| Path | Owner | Others |
+|---|---|---|
+| `scripts/fold/`, `shaders/fold.gdshader` | **Claude** | Don't edit. Ask in TASKS.md. |
+| `scripts/main.gd`, `scripts/units/`, `scripts/buildings/` | Claude (v0.1), then open | Coordinate via TASKS.md |
+| `scenes/ui/`, `scripts/ui/`, `scripts/autoload/audio.gd` | **Helper agent** (Antigravity, after prototype lock) | |
+| `assets/` | **Human** (PixelLab / AutoSprite / Suno / fish.audio) | Agents only read |
+
+## Asset conventions
+- `assets/sprites/{units,buildings,terrain,fx,ui}/`, `assets/audio/{music,sfx,voice}/`
+- snake_case names. Sprite sheets are **horizontal strips** named `name_WxH_Nf.png`,
+  e.g. `enemy_grunt_walk_32x32_4f.png`.
+- See `ART_BRIEF.md` for sizes, palette and prompts.
