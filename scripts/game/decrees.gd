@@ -6,15 +6,15 @@ class_name Decrees
 ## id -> {name, text, icon}. `icon` is a short keyword the UI may map to an icon/sprite.
 const LIST := {
 	"heavy_stock": {"name": "Heavy Stock", "text": "Walls are heavy too: they crush like towers.", "icon": "wall"},
-	"wet_ink": {"name": "Wet Ink", "text": "Every crush splashes: enemies close by get slapped.", "icon": "splat"},
+	"wet_ink": {"name": "Wet Ink", "text": "Crushes splash: enemies right next to a crush are crushed too.", "icon": "splat"},
 	"paper_cut": {"name": "Paper Cut", "text": "The flap's edge slices: enemies right under it are crushed.", "icon": "blade"},
 	"royal_treasury": {"name": "Royal Treasury", "text": "+1 Ink for every enemy defeated.", "icon": "ink"},
 	"stone_keep": {"name": "Stone Keep", "text": "The Keep gains +4 max HP and is fully repaired.", "icon": "keep"},
 	"reinforcements": {"name": "Reinforcements", "text": "Barracks field 3 knights instead of 2.", "icon": "knight"},
 	"deep_rips": {"name": "Deep Rips", "text": "Tears swallow 6 enemies before they're stitched shut.", "icon": "tear"},
 	"thick_parchment": {"name": "Thick Parchment", "text": "Keep Slams no longer cost the Keep any HP.", "icon": "keep"},
-	"masons_guild": {"name": "Mason's Guild", "text": "Walls cost 1 less Ink and have double HP.", "icon": "wall"},
-	"aftershock": {"name": "Aftershock", "text": "Slams stun every enemy near the crease.", "icon": "crease"},
+	"masons_guild": {"name": "Mason's Guild", "text": "Walls are twice as tough and fully repaired every wave.", "icon": "wall"},
+	"aftershock": {"name": "Aftershock", "text": "Every slam shakes the whole map: all enemies are stunned for a second.", "icon": "crease"},
 	"flip_tax": {"name": "Flip Tax", "text": "Flipped enemies land hard: they're slapped on arrival.", "icon": "flip"},
 	"slow_time": {"name": "Steady Hand", "text": "Time slows even more while you aim a fold.", "icon": "hourglass"},
 }

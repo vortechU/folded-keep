@@ -10,7 +10,7 @@ signal unfolded
 signal torn(pos: Vector2)
 
 enum State { IDLE, DRAGGING, BUSY }
-enum Outcome { CRUSH, SLAP, FLIP }
+enum Outcome { CRUSH, SLAP, FLIP, FLING }
 
 const EDGE_MARGIN := 28.0
 const MIN_DRAG := 24.0
@@ -86,7 +86,7 @@ func begin_fold(pos: Vector2) -> bool:
 	pointer = g
 	lift = 1.0
 	state = State.DRAGGING
-	Engine.time_scale = DRAG_TIME_SCALE
+	Engine.time_scale = DRAG_TIME_SCALE * (0.6 if Decrees.has("slow_time") else 1.0)
 	Audio.play_sfx("paper_grab")
 	fold_started.emit()
 	drag_to(pos)
@@ -128,17 +128,37 @@ func compute_outcomes(m: Vector2, n: Vector2) -> Array:
 			continue
 		var pos: Vector2 = u.position
 		var q := FoldMath.mirror(pos, m, n)
-		if not _in_map(q):
-			continue
+		var on_flap := FoldMath.side(pos, m, n) > 0.0
 		var entry := {"unit": u, "pos": pos, "target": q}
-		if FoldMath.side(pos, m, n) > 0.0:
+		if not _in_map(q):
+			# On a flap so big its far end hangs off the map: flung off the table
+			# (bosses are too heavy to fling).
+			if on_flap and not u.is_boss():
+				entry.outcome = Outcome.FLING
+				out.append(entry)
+			continue
+		if on_flap:
 			entry.outcome = Outcome.FLIP
+		elif u.is_flying():
+			continue # the flap passes under it
 		elif _heavy_building_at(q, u.hit_radius()) != null:
 			entry.outcome = Outcome.CRUSH
+		elif Decrees.has("paper_cut") and _edge_dist(q) < 6.0:
+			entry.outcome = Outcome.CRUSH # sliced by the flap's edge
 		else:
 			entry.outcome = Outcome.SLAP
 		out.append(entry)
+	if Decrees.has("wet_ink"):
+		# crushes splash: slapped units right next to a crush are crushed too
+		var crushes := out.filter(func(e): return e.outcome == Outcome.CRUSH)
+		for e in out:
+			if e.outcome == Outcome.SLAP and crushes.any(func(c): return c.pos.distance_to(e.pos) < 26.0):
+				e.outcome = Outcome.CRUSH
 	return out
+
+
+func _edge_dist(p: Vector2) -> float:
+	return minf(minf(p.x, map_size.x - p.x), minf(p.y, map_size.y - p.y))
 
 
 func _impact() -> void:
@@ -153,6 +173,12 @@ func _impact() -> void:
 				e.unit.on_slapped(-n)
 			Outcome.FLIP:
 				e.unit.on_flipped(e.target)
+				if Decrees.has("flip_tax") and e.unit.team == Unit.Team.ENEMY:
+					e.unit.on_slapped(-n)
+			Outcome.FLING:
+				e.unit.on_flung(e.target - e.pos)
+				Events.flung.emit(e.unit)
+	_decree_effects(m, n, outcomes)
 	var tears := tear_points(m, n)
 	_add_crease(m, n)
 	for t in tears:
@@ -162,6 +188,18 @@ func _impact() -> void:
 	if fx:
 		fx.slam(m, n, outcomes)
 	slammed.emit(m, n, outcomes)
+
+
+## Slam bonuses from Royal Decrees.
+func _decree_effects(m: Vector2, n: Vector2, outcomes: Array) -> void:
+	var hit := {}
+	for e in outcomes:
+		hit[e.unit] = true
+	for u in get_tree().get_nodes_in_group("enemy"):
+		if not u.is_alive() or hit.has(u):
+			continue
+		if Decrees.has("aftershock"):
+			u.stun = maxf(u.stun, 1.0)
 
 
 func _unfold(duration: float) -> void:
@@ -276,7 +314,7 @@ static func _intersect(m1: Vector2, n1: Vector2, m2: Vector2, n2: Vector2) -> Ve
 func _tear(p: Vector2) -> void:
 	if holes.size() >= MAX_HOLES:
 		return
-	holes.append({"pos": p, "r": TEAR_RADIUS, "left": TEAR_CAPACITY})
+	holes.append({"pos": p, "r": TEAR_RADIUS, "left": TEAR_CAPACITY * (2 if Decrees.has("deep_rips") else 1)})
 	# whatever was printed there falls through (the Keep's zone never tears)
 	for b in get_tree().get_nodes_in_group("building"):
 		if b.kind != "keep" and b.contains_point(p, TEAR_RADIUS * 0.5):
@@ -357,6 +395,14 @@ func _draw() -> void:
 				var t: Vector2 = e.target
 				draw_dashed_line(p, t, Palette.BLUE_LIGHT, 1.0, 3.0)
 				draw_arc(t, 4.0, 0.0, TAU, 10, Palette.BLUE_LIGHT, 1.0)
+			Outcome.FLING:
+				# an arrow off the edge of the map
+				var d: Vector2 = (e.target - e.pos).normalized()
+				var c := Palette.GOLD.lerp(Color.WHITE, pulse * 0.3)
+				draw_arc(p, 6.0, 0.0, TAU, 12, c, 1.5)
+				draw_line(p + d * 8.0, p + d * 22.0, c, 2.0)
+				draw_line(p + d * 22.0, p + d * 16.0 + d.orthogonal() * 4.0, c, 2.0)
+				draw_line(p + d * 22.0, p + d * 16.0 - d.orthogonal() * 4.0, c, 2.0)
 
 
 func _snap_to_edge(pos: Vector2) -> Vector2:
@@ -388,6 +434,6 @@ func _in_map(p: Vector2) -> bool:
 
 func _heavy_building_at(p: Vector2, margin := 0.0) -> Node:
 	for b in get_tree().get_nodes_in_group("building"):
-		if b.heavy and b.contains_point(p, margin):
+		if (b.heavy or (b.kind == "wall" and Decrees.has("heavy_stock"))) and b.contains_point(p, margin):
 			return b
 	return null

@@ -273,6 +273,33 @@ func on_fell(hole: Vector2) -> void:
 	tw.chain().tween_callback(queue_free)
 
 
+func is_boss() -> bool:
+	return kind == "ram" or kind == "warlord"
+
+
+func is_flying() -> bool:
+	return kind == "flyer"
+
+
+## Flung off the edge of the map by a huge fold: sails off the table, spinning.
+func on_flung(dir: Vector2) -> void:
+	if not _alive:
+		return
+	_alive = false
+	foe = null
+	died.emit(self)
+	var fx := Fx.of(self)
+	if fx:
+		fx.text(position + Vector2(0, -16), "OFF THE MAP!", Palette.GOLD)
+	z_index = 10
+	var tw := create_tween().set_parallel()
+	tw.tween_property(self, "position", position + dir.normalized() * 260.0, 0.6).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
+	tw.tween_property(self, "rotation", TAU * 3.0, 0.6)
+	tw.tween_property(self, "scale", Vector2(2.2, 2.2), 0.6)
+	tw.tween_property(self, "modulate:a", 0.0, 0.6).set_delay(0.25)
+	tw.chain().tween_callback(queue_free)
+
+
 func on_flipped(to: Vector2) -> void:
 	if not _alive:
 		return

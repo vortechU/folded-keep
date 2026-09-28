@@ -71,6 +71,12 @@ func _ready() -> void:
 
 func _enter_build() -> void:
 	phase = Phase.BUILD
+	if Decrees.has("masons_guild"):
+		for b in get_tree().get_nodes_in_group("building"):
+			if b.kind == "wall":
+				b.max_hp = 12
+				b.hp = 12
+				b.queue_redraw()
 	_fill_squads()
 	Events.phase_changed.emit("build")
 	Events.banner.emit("BUILD, THEN FIGHT!" if wave == 0 else "WAVE CLEARED")
@@ -124,6 +130,10 @@ func _on_decree_chosen(id: String) -> void:
 	_enter_build()
 
 
+func squad_size() -> int:
+	return Waves.SQUAD_SIZE + (1 if Decrees.has("reinforcements") else 0)
+
+
 func keep_max_hp() -> int:
 	return Waves.KEEP_MAX_HP + (4 if Decrees.has("stone_keep") else 0)
 
@@ -167,7 +177,7 @@ func _add_building(kind: String, pos: Vector2, size: Vector2) -> Building:
 	b.size = size
 	b.position = pos
 	if kind == "wall":
-		b.max_hp = 6
+		b.max_hp = 12 if Decrees.has("masons_guild") else 6
 	elif kind == "barracks":
 		b.heavy = false
 	buildings.add_child(b)
@@ -199,7 +209,7 @@ func _update_barracks(delta: float) -> void:
 		if b.kind != "barracks":
 			continue
 		b.squad = b.squad.filter(func(k): return is_instance_valid(k) and k.is_alive())
-		if b.squad.size() >= Waves.SQUAD_SIZE:
+		if b.squad.size() >= squad_size():
 			b.spawn_cd = 0.0
 			continue
 		b.spawn_cd -= delta
@@ -214,7 +224,7 @@ func _fill_squads() -> void:
 	for b in get_tree().get_nodes_in_group("building"):
 		if b.kind == "barracks":
 			b.squad = b.squad.filter(func(k): return is_instance_valid(k) and k.is_alive())
-			while b.squad.size() < Waves.SQUAD_SIZE:
+			while b.squad.size() < squad_size():
 				b.squad.append(_spawn_knight(b))
 			b.spawn_cd = Waves.KNIGHT_RESPAWN
 			b.queue_redraw()
@@ -239,7 +249,7 @@ func _spawn_knight(b: Building) -> Unit:
 func _on_unit_died(u: Unit) -> void:
 	if u.team == Unit.Team.ENEMY:
 		kills += 1
-		_set_ink(ink + Waves.REWARDS.get(u.kind, 1))
+		_set_ink(ink + Waves.REWARDS.get(u.kind, 1) + (1 if Decrees.has("royal_treasury") else 0))
 	Events.unit_crushed.emit(u)
 	_check_wave_end.call_deferred()
 
