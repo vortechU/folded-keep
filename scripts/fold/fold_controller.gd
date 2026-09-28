@@ -434,6 +434,6 @@ func _in_map(p: Vector2) -> bool:
 
 func _heavy_building_at(p: Vector2, margin := 0.0) -> Node:
 	for b in get_tree().get_nodes_in_group("building"):
-		if (b.heavy or (b.kind == "wall" and Decrees.has("heavy_stock"))) and b.contains_point(p, margin):
+		if b.heavy and b.contains_point(p, margin + (6.0 if Decrees.has("heavy_stock") else 0.0)):
 			return b
 	return null

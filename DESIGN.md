@@ -68,6 +68,50 @@ hits whatever lies underneath. Your castle layout *is* your arsenal.
 | Brute | Slow. Slaps do nothing; only a crush kills. |
 | Boss: Siege Ram | Wave 7 (final). Needs 3 crushes, ignores slaps, breaks walls in one hit, deals 5 Keep damage. Flipping it throws it back up the road. |
 
+### Royal Decrees (done)
+After each cleared wave the King offers 3 of 12 decrees (`scripts/game/decrees.gd`), pick 1, it lasts
+the run. Effects live in `fold_controller.gd` / `main.gd` (`Decrees.has(id)`). UI: Helper task #20.
+
+### Fling rule (done)
+A unit on the flap whose mirrored spot falls **off the map** is **flung off the table** (dies,
+"OFF THE MAP!", gold arrow in the aim preview). Happens with big diagonal folds. Bosses can't be flung.
+`Unit.is_boss()`, `Unit.is_flying()` exist.
+
+### Fold-aware enemies (planned, task #22) — enemies that fight the MAP
+| Enemy | Kind id | Behavior |
+|---|---|---|
+| Pin-Bearer | `pinner` | Leaves the road, walks to the nearest map **corner** and hammers in a giant nail. While he lives, folds can't be grabbed within ~140 px of that corner (grab is refused with a red shake/flash on the pin). Doesn't attack the Keep. 2 slaps or a crush kill him. Reward 3. From wave 3. |
+| Crow Rider | `flyer` | Flies in a straight line from the top toward the Keep, ignoring roads, walls and knights. **Can't be crushed or slapped** (the flap passes under it); only **flipped** (sent back) or **flung** off the map. From wave 4. |
+| Ink Imp | `imp` | Runs off-road to a random spot and gnaws the paper (visible progress ring, ~4 s). If it finishes, the map **tears** there (same holes as wear & tear). Killing it cancels. From wave 5. |
+Each first appearance emits `Events.enemy_introduced(kind)` (Helper #21 shows the card).
+Sprites: `assets/sprites/units/enemy_pinner.png`, `enemy_flyer.png`, `enemy_imp.png` (placeholder draw until they land).
+
+### 12-wave run (planned, task #22)
+12 waves (~15 min). Mid-boss at **wave 6** (Iron Warlord, triggers a Duel), final boss at **wave 12**
+(Siege Ram + its driver, Duel first). Decree after every wave. New enemies ramp in (runner 3,
+brute 4, pinner 3, flyer 4, imp 5...). Retune `waves.gd` after.
+
+### Duel of Champions (planned, task #23) — first-person boss duel
+When a boss arrives the map freezes and a full-screen **first-person** duel starts (portrait):
+the boss towers in the center facing you; the Champion's gauntlet+sword (right) and shield (left)
+sit at the bottom of the screen. Painted-page look, background `duel_bg.png`.
+- **Rounds (turn-based rhythm):** the boss **winds up** a clearly telegraphed attack: swing from
+  LEFT, swing from RIGHT, or OVERHEAD smash (plus fake-outs for the final boss). The player
+  answers with a **swipe**: dodge right / dodge left / swipe up = raise shield. Correct read →
+  a short **strike window**: tap repeatedly to hit (each tap = damage + hit flash + shake).
+  Wrong/no read → the Champion takes a hit (3–4 hits = knocked out).
+- **Stagger bar:** fills with hits. Full → "FOLD IT!": the page's edge glows; drag it over the
+  boss and release = the page folds onto the boss (fold finisher, big slam, ink splash).
+- **Outcome:** win → mid-boss defeated outright (big ink reward) / final boss enters the map
+  wounded (1 crush left). Lose → boss enters at full strength and the Keep takes 2 damage.
+- Animation in code (tweens: lunges, squash, shake, flashes, telegraph arrows/glow). Placeholder
+  shapes until art lands: `duel_<boss>_idle/windup/hurt.png` (boss = `warlord`, `driver`),
+  `duel_champion_arm.png`, `duel_champion_shield.png`, `duel_bg.png` in `assets/sprites/duel/`.
+- Single pointer only (swipe = drag with direction; tap = press/release short). Must work while
+  the map is frozen (the duel scene can pause the tree and use `process_mode ALWAYS`).
+- Suggested files: `scenes/duel/duel.tscn`, `scripts/duel/duel.gd` (Claude-owned). Trigger from
+  `main.gd` when a boss spawns; `Events.duel_started(boss)` / `Events.duel_finished(won)`.
+
 ## Tech
 - **Godot 4.7.2**, **GL Compatibility** renderer (required for web), web export **without threads**
   (no SharedArrayBuffer needed on itch).

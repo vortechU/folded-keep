@@ -5,7 +5,7 @@ class_name Decrees
 
 ## id -> {name, text, icon}. `icon` is a short keyword the UI may map to an icon/sprite.
 const LIST := {
-	"heavy_stock": {"name": "Heavy Stock", "text": "Walls are heavy too: they crush like towers.", "icon": "wall"},
+	"heavy_stock": {"name": "Heavy Stock", "text": "Towers and walls crush a much wider area.", "icon": "wall"},
 	"wet_ink": {"name": "Wet Ink", "text": "Crushes splash: enemies right next to a crush are crushed too.", "icon": "splat"},
 	"paper_cut": {"name": "Paper Cut", "text": "The flap's edge slices: enemies right under it are crushed.", "icon": "blade"},
 	"royal_treasury": {"name": "Royal Treasury", "text": "+1 Ink for every enemy defeated.", "icon": "ink"},
