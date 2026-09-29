@@ -52,6 +52,27 @@ func _run() -> void:
 	await _map("g_atmosphere_1")
 	await _wait(2.5)
 	await _map("g_atmosphere_2")
+	# ambient life: a flock of birds overhead, then a slam next to the sheep
+	var world: Node = _main.get_node("MapViewport/World")
+	for c in world.get_children():
+		if c is Birds:
+			c._spawn()
+			c._flocks[-1].pos = Vector2(150, 200)
+	await _wait(0.3)
+	await _map("h_birds_and_sheep")
+	var fold: FoldController = _main.fold
+	fold.begin_fold(Vector2(360, 240))
+	for i in 10:
+		fold.drag_to(Vector2(360, 240).lerp(Vector2(120, 240), (i + 1) / 10.0))
+		await get_tree().process_frame
+	fold.release()
+	await _wait(0.45)
+	await _map("i_sheep_scatter")
+	var scared := 0
+	for c in world.get_children():
+		if c is Ambient:
+			scared = c._sheep.filter(func(sh): return sh.panic > 0.0).size()
+	print("AMBIENT scared sheep=%d" % scared)
 	print("INK done")
 	get_tree().quit()
 

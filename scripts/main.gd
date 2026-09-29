@@ -76,7 +76,7 @@ func _ready() -> void:
 			_run_autotest(arg.trim_prefix("--autotest="))
 
 
-## Wind curls on the paper (under splats and buildings) and cloud shadows over everything.
+## Wind curls on the paper, cloud shadows over everything, and ambient life (sheep, smoke, birds).
 func _add_atmosphere() -> void:
 	var world := $MapViewport/World
 	var wind := Wind.new()
@@ -90,6 +90,12 @@ func _add_atmosphere() -> void:
 	clouds.material = mat
 	clouds.draw.connect(func(): clouds.draw_rect(Rect2(Vector2.ZERO, Paper.SIZE), Color.WHITE))
 	world.add_child(clouds)
+	# sheep and chimney smoke under the buildings; birds above everything
+	var ambient := Ambient.new()
+	world.add_child(ambient)
+	world.move_child(ambient, buildings.get_index())
+	fold.slammed.connect(ambient.on_slam)
+	world.add_child(Birds.new())
 
 
 # --- phases ---------------------------------------------------------------------------

@@ -8,6 +8,8 @@ extends Node2D
 const WATER := Color("#9fb4b2")
 const LAKE := Vector2(-6, 398)
 const LAKE_R := Vector2(50, 32)
+## A little hamlet by the left tower; ambient.gd puffs smoke from its chimneys.
+const HOUSES := [Vector2(50, 322), Vector2(67, 312), Vector2(82, 327)]
 
 var paper: Paper
 var _rng := RandomNumberGenerator.new()
@@ -28,6 +30,30 @@ func _draw() -> void:
 	_draw_cartouche(Vector2(180, 52), "THE FOLDED KEEP")
 	_draw_compass(Vector2(318, 470), 20.0)
 	_draw_scale_bar(Vector2(22, 548))
+	_draw_hamlet()
+
+
+## Chimney tops of the hamlet's houses (where the smoke comes out).
+static func chimneys() -> Array[Vector2]:
+	var out: Array[Vector2] = []
+	for h: Vector2 in HOUSES:
+		out.append(h + Vector2(2.5, -10.5))
+	return out
+
+
+func _draw_hamlet() -> void:
+	var houses: Array = HOUSES.duplicate()
+	houses.sort_custom(func(a, b): return a.y < b.y)
+	for h: Vector2 in houses:
+		draw_rect(Rect2(h + Vector2(-4, -1), Vector2(10, 6)), Color(Palette.INK, 0.15))
+		# chimney, walls, roof, door
+		draw_rect(Rect2(h + Vector2(1.5, -10.5), Vector2(2, 5)), Palette.SEPIA)
+		draw_rect(Rect2(h + Vector2(-5, -4), Vector2(10, 7)), Palette.PARCHMENT_MID)
+		draw_rect(Rect2(h + Vector2(-5, -4), Vector2(10, 7)), Palette.SEPIA, false, 0.7)
+		var roof := PackedVector2Array([h + Vector2(-6.5, -4), h + Vector2(0, -9.5), h + Vector2(6.5, -4)])
+		draw_colored_polygon(roof, Color(Palette.RED, 0.7))
+		draw_polyline(roof + PackedVector2Array([roof[0]]), Palette.SEPIA, 0.7)
+		draw_rect(Rect2(h + Vector2(-1, -0.5), Vector2(2, 3.5)), Palette.SEPIA)
 
 
 # --- water ------------------------------------------------------------------------------
