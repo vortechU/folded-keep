@@ -29,7 +29,7 @@ Status: `TODO` · `IN PROGRESS` · `DONE` · `BLOCKED`. Owners: **Claude**, **Hu
 | 8 | Real HUD replacing `scripts/ui/proto_hud.gd` (same Events API): Keep HP, Ink, wave, build buttons, wax-seal style | Helper | DONE: replaced prototype with wax-seal HUD; Keep/Ink/wave and build controls use Events only. Costs are 4/3 in UI. |
 | 9 | Main menu, pause, victory/defeat screens | Helper | DONE: added parchment menu, pause, and result screens; one-pointer buttons use Events for restart and leave wave edges clear. Reviewer follow-up: restart now skips the menu and drops straight into a fresh, unpaused wave 1 (`scripts/ui/game_screens.gd`); banner hide time tightened to ~1.45s (`scripts/ui/hud.gd`). |
 | 10 | All remaining sprites + walk animations (ART_BRIEF step 2) | Human | TODO |
-| 11 | Music (Suno) + SFX | Human | IN PROGRESS: music DONE, trimmed loops in `assets/audio/music/` (menu = build phase + menu, battle, boss, victory, defeat; loop is set by `audio.gd`); SFX still TODO |
+| 11 | Music (Suno) + SFX | Human | IN PROGRESS: music DONE, trimmed loops in `assets/audio/music/` (menu = build phase + menu, battle, boss, victory, defeat; loop is set by `audio.gd`; boss music drops back to battle once no duel runs and no boss is alive, checked every 0.5 s); SFX still TODO |
 
 ## Phase 3: Content & polish
 | # | Task | Owner | Status |

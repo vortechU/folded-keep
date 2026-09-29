@@ -4,13 +4,16 @@ extends Node
 const MUSIC_NAMES := ["menu", "battle", "boss", "victory", "defeat"]
 const SFX_NAMES := [
 	"paper_grab", "paper_fold", "slam", "crush", "splat", "stamp",
-	"ink_gain", "keep_hit", "wave_horn", "tear", "ui_click",
+	"ink_gain", "keep_hit", "wave_horn", "tear", "ui_click", "pin", "pin_block",
+	"duel_windup", "duel_swing", "duel_clang", "duel_whoosh", "duel_hurt", "duel_hit",
+	"duel_stagger", "duel_dodge",
 ]
 const SFX_POOL_SIZE := 8
 const MUSIC_VOLUME_DB := -14.0
 const SFX_VOLUME_DB := -5.0
 const CROSSFADE_SECONDS := 0.8
 const SILENCE_DB := -60.0
+const BOSS_CHECK_SECONDS := 0.5
 
 var _streams: Dictionary = {}
 var _music_players: Array[AudioStreamPlayer] = []
@@ -22,6 +25,8 @@ var _fade_time := CROSSFADE_SECONDS
 var _outgoing_gain := 0.0
 var _next_sfx_player := 0
 var _last_ink := -1
+var _phase := ""
+var _boss_check := 0.0
 
 
 func _ready() -> void:
@@ -52,6 +57,10 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	_boss_check -= delta
+	if _boss_check <= 0.0:
+		_boss_check = BOSS_CHECK_SECONDS
+		_check_boss_gone()
 	if _fade_time >= CROSSFADE_SECONDS:
 		return
 	_fade_time = minf(_fade_time + delta, CROSSFADE_SECONDS)
@@ -150,7 +159,22 @@ func _set_music_gain(player: AudioStreamPlayer, gain: float) -> void:
 	player.volume_db = MUSIC_VOLUME_DB + linear_to_db(maxf(gain, 0.001))
 
 
+## Boss music only lasts while a duel runs or a boss is alive on the map; the rest of the wave
+## goes back to battle music (a won Warlord duel never puts him on the map at all).
+func _check_boss_gone() -> void:
+	if _current_track != "boss" or _phase != "wave":
+		return
+	var tree := get_tree()
+	if not tree.get_nodes_in_group("duel").is_empty():
+		return
+	for u in tree.get_nodes_in_group("enemy"):
+		if Waves.BOSSES.has(u.kind) and u.is_alive():
+			return
+	play_music("battle")
+
+
 func _on_phase_changed(phase: String) -> void:
+	_phase = phase
 	match phase:
 		"build":
 			play_music("menu")
@@ -186,8 +210,10 @@ func _on_keep_hit() -> void:
 
 
 func _on_boss_spawned() -> void:
+	# the duel already sounded the horn for this boss
+	if _current_track != "boss":
+		play_sfx("wave_horn")
 	play_music("boss")
-	play_sfx("wave_horn")
 
 
 func _on_build_requested(_kind: String) -> void:

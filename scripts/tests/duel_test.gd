@@ -85,6 +85,8 @@ func _run() -> void:
 	await _shot("98_after_warlord")
 	var warlords := get_tree().get_nodes_in_group("enemy").filter(func(u): return u.kind == "warlord")
 	print("DUEL warlord done: paused=%s ink +%d warlords_on_map=%d" % [get_tree().paused, _main.ink - ink0, warlords.size()])
+	await _wait(Audio.BOSS_CHECK_SECONDS + 0.1)
+	print("DUEL music after warlord won: %s (want battle)" % Audio._current_track)
 
 	# --- duel 2: the Ram's driver, lost on purpose ------------------------------------
 	var hp0: int = _main.keep_hp
@@ -102,6 +104,12 @@ func _run() -> void:
 	var rams := get_tree().get_nodes_in_group("enemy").filter(func(u): return u.kind == "ram")
 	print("DUEL driver lost: keep %d -> %d, ram crushes=%s paused=%s events=%s" % [hp0, _main.keep_hp,
 		rams.map(func(r): return r.crushes_to_kill), get_tree().paused, _events])
+	await _wait(Audio.BOSS_CHECK_SECONDS + 0.1)
+	print("DUEL music with the ram on the map: %s (want boss)" % Audio._current_track)
+	while not rams.is_empty() and rams[0].is_alive():
+		rams[0].on_crushed()
+	await _wait(Audio.BOSS_CHECK_SECONDS + 0.1)
+	print("DUEL music after the ram died: %s (want battle)" % Audio._current_track)
 	get_tree().quit()
 
 
