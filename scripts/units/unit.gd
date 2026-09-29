@@ -4,6 +4,8 @@ extends Node2D
 ## Placeholder art is drawn in _draw() until the real sprites land.
 
 signal died(unit: Unit)
+
+const InkShader := preload("res://shaders/ink.gdshader")
 signal reached_keep(unit: Unit)
 ## Ink Imp finished gnawing: the map should tear here.
 signal gnawed(pos: Vector2)
@@ -77,6 +79,7 @@ var _flash := 0.0
 var _face := 1.0 ## 1 = facing right, -1 = mirrored
 var _last_x := 0.0
 var _hammer := 0.0
+var _inked := false ## drawn onto the map yet (happens as it steps inside the frame)
 var _refuse := 0.0 ## red shake on the nail when a fold is refused
 
 
@@ -102,6 +105,26 @@ func _ready() -> void:
 	add_to_group("unit")
 	add_to_group("enemy" if team == Team.ENEMY else "ally")
 	_t = randf() * 10.0
+	var mat := ShaderMaterial.new()
+	mat.shader = InkShader
+	mat.set_shader_parameter("seed", randf() * 100.0)
+	mat.set_shader_parameter("reveal", 0.0)
+	mat.set_shader_parameter("center", Vector2(0, -7.0 * _size))
+	mat.set_shader_parameter("radius", 14.0 * _size)
+	material = mat
+
+
+func _set_reveal(v: float) -> void:
+	(material as ShaderMaterial).set_shader_parameter("reveal", v)
+
+
+## An invisible quill sketches the unit in as it steps onto the map, then the ink floods it.
+func _ink_in() -> void:
+	_inked = true
+	create_tween().tween_method(_set_reveal, 0.0, 1.0, 0.45)
+	var fx := Fx.of(self)
+	if fx:
+		fx.scribble(position + Vector2(0, -6) * _size, 8.0 * _size)
 
 
 func is_alive() -> bool:
@@ -112,6 +135,8 @@ func _process(delta: float) -> void:
 	if not _alive:
 		return
 	_t += delta
+	if not _inked and Rect2(Vector2.ZERO, Paper.SIZE).grow(-2.0).has_point(position):
+		_ink_in()
 	_flash = maxf(0.0, _flash - delta)
 	_refuse = maxf(0.0, _refuse - delta)
 	queue_redraw()
@@ -364,8 +389,9 @@ func on_crushed() -> void:
 	died.emit(self)
 	var tw := create_tween()
 	tw.tween_property(self, "scale", Vector2(1.9, 0.12), 0.05)
-	tw.tween_interval(0.12)
-	tw.tween_property(self, "modulate:a", 0.0, 0.08)
+	tw.tween_interval(0.08)
+	# the ink soaks away into the paper (the splat stays)
+	tw.tween_method(_set_reveal, 1.0, 0.0, 0.3)
 	tw.tween_callback(queue_free)
 
 

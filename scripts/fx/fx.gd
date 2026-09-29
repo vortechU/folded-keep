@@ -5,7 +5,7 @@ extends Node2D
 ## Get it with `Fx.of(node)`. The fold controller adds it to the Board, above the folded map.
 ## Owner: Claude (see DESIGN.md).
 
-enum Kind { PUFF, DROP, RING, STAR, TEXT }
+enum Kind { PUFF, DROP, RING, STAR, TEXT, SCRIBBLE }
 
 const MAX_PARTS := 500
 const MAP := Rect2(0, 0, 360, 640)
@@ -79,6 +79,18 @@ func ring(pos: Vector2, radius: float, color := Palette.INK, life := 0.3) -> voi
 func star(pos: Vector2, color := Palette.GOLD) -> void:
 	_add({"kind": Kind.STAR, "pos": pos, "v": Vector2.ZERO, "drag": 1.0, "life": 0.22, "r": 9.0, "color": color,
 		"a": randf() * TAU})
+
+
+## A quill's quick sketch loop around a spot (something being drawn onto the map).
+func scribble(pos: Vector2, radius: float, color := Palette.SEPIA) -> void:
+	var pts := PackedVector2Array()
+	var a0 := randf() * TAU
+	for i in 22:
+		var a := a0 + i * TAU * 2.2 / 22.0
+		var r := radius * randf_range(0.75, 1.15)
+		pts.append(pos + Vector2(cos(a) * r, sin(a) * r * 0.8))
+	_add({"kind": Kind.SCRIBBLE, "pos": pos, "v": Vector2.ZERO, "drag": 1.0, "life": 0.5, "r": radius,
+		"color": color, "pts": pts})
 
 
 ## Floating popup text (rewards, combos).
@@ -173,6 +185,11 @@ func _draw() -> void:
 				for i in 6:
 					var d := Vector2.from_angle(p.a + TAU * i / 6.0)
 					draw_line(pos + d * r * 0.5, pos + d * r, Color(col, 1.0 - k), 1.5)
+			Kind.SCRIBBLE:
+				var pts: PackedVector2Array = p.pts
+				var n := mini(pts.size(), int(pts.size() * k * 2.4) + 2)
+				var a := clampf((1.0 - k) * 2.5, 0.0, 1.0)
+				draw_polyline(pts.slice(0, n), Color(col, 0.8 * a), 1.0)
 			Kind.TEXT:
 				var fs: int = p.size
 				var pop := 1.0 + 0.6 * maxf(0.0, 1.0 - k * 8.0)

@@ -10,6 +10,8 @@ extends Node2D
 
 signal destroyed(building: Building)
 
+const InkShader := preload("res://shaders/ink.gdshader")
+
 ## Painted sprites (see ART_BRIEF.md). Kinds without one use the placeholder drawing below.
 const SPRITE_DIR := "res://assets/sprites/buildings/"
 ## On-map width of each sprite in base pixels (height follows the image).
@@ -25,17 +27,31 @@ var spawn_cd := 0.0
 func _ready() -> void:
 	add_to_group("building")
 	hp = max_hp
+	var mat := ShaderMaterial.new()
+	mat.shader = InkShader
+	mat.set_shader_parameter("seed", randf() * 100.0)
+	mat.set_shader_parameter("boil", 0.8)
+	# the stamp soaks in from the middle of the drawing (sprites stand on the footprint's bottom)
+	var w: float = SPRITE_WIDTH.get(kind, size.x)
+	mat.set_shader_parameter("center", Vector2(0, size.y * 0.5 - w * 0.6) if kind != "wall" else Vector2.ZERO)
+	mat.set_shader_parameter("radius", w * 0.9)
+	material = mat
 	_stamp()
+
+
+func _set_reveal(v: float) -> void:
+	(material as ShaderMaterial).set_shader_parameter("reveal", v)
 
 
 ## Buildings are stamped onto the map: drop in big, squash, settle.
 func _stamp() -> void:
 	scale = Vector2(1.45, 1.45)
-	modulate.a = 0.0
+	_set_reveal(0.0)
 	var tw := create_tween()
 	tw.set_parallel()
 	tw.tween_property(self, "scale", Vector2(1.18, 0.82), 0.09).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
-	tw.tween_property(self, "modulate:a", 1.0, 0.06)
+	# the stamp's wet ink soaks into the paper
+	tw.tween_method(_set_reveal, 0.15, 1.0, 0.4).set_ease(Tween.EASE_OUT)
 	tw.chain().tween_callback(func():
 		var fx := Fx.of(self)
 		if fx:
@@ -61,7 +77,7 @@ func crumble() -> void:
 	destroyed.emit(self)
 	var tw := create_tween().set_parallel()
 	tw.tween_property(self, "scale", Vector2(0.2, 0.2), 0.35).set_ease(Tween.EASE_IN)
-	tw.tween_property(self, "modulate:a", 0.0, 0.35)
+	tw.tween_method(_set_reveal, 1.0, 0.0, 0.35)
 	tw.chain().tween_callback(queue_free)
 
 
@@ -82,7 +98,7 @@ func damage(amount: int) -> void:
 		remove_from_group("building")
 		destroyed.emit(self)
 		var tw := create_tween()
-		tw.tween_property(self, "modulate:a", 0.0, 0.25)
+		tw.tween_method(_set_reveal, 1.0, 0.0, 0.35)
 		tw.tween_callback(queue_free)
 
 

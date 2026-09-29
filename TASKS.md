@@ -52,6 +52,7 @@ Status: `TODO` · `IN PROGRESS` · `DONE` · `BLOCKED`. Owners: **Claude**, **Hu
 | 22b | Fold-aware enemies: pinner, flyer, imp (spec in DESIGN.md) + `enemy_introduced` | Claude | DONE: behaviors in `unit.gd`, pin blocking + `tear_at` in `fold_controller.gd`; units right under the pointer are now always hit (2 px slack). Test: `scenes/tests/enemies_test.tscn` |
 | 22c | 12-wave run with mid-boss at wave 6 (spec in DESIGN.md), retune waves.gd | Claude | DONE: 12 waves in `waves.gd`, Iron Warlord (`warlord`, 2 crushes) leads wave 6, Siege Ram wave 12. Test: `scenes/tests/run_test.tscn` (full run, decree picks, both bosses) |
 | 23 | Duel of Champions: first-person boss duel (spec in DESIGN.md) | Claude | DONE: `scenes/duel/duel.tscn` + `scripts/duel/duel.gd`, triggered by `main.gd` `_duel()` for both bosses; placeholder art in code, loads `assets/sprites/duel/*.png` when present. Test: `scenes/tests/duel_test.tscn` |
+| 24 | Ink look: line boil + ink reveal on units/buildings | Claude | DONE: `shaders/ink.gdshader` (one material per unit/building, `reveal` 0..1, 4 fps boil). Units ink in as they step onto the map (+ quill scribble fx), crushed units soak away, stamps soak in, splats bleed outward. Test: `scenes/tests/ink_test.tscn` |
 
 ## Requests / Notes
 - *(Agents: write requests for owner-only files here.)*
