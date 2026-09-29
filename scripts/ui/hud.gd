@@ -2,6 +2,8 @@ extends Control
 ## Parchment HUD. Gameplay state and requests pass exclusively through Events.
 
 const ScreensScene := preload("res://scenes/ui/game_screens.tscn")
+const DecreeScene := preload("res://scenes/ui/royal_decrees.tscn")
+const EnemyIntroScene := preload("res://scenes/ui/enemy_intro.tscn")
 const TutorialScript := preload("res://scripts/ui/fold_tutorial.gd")
 
 const PANEL := Color("#2A1D14")
@@ -58,6 +60,8 @@ func _ready() -> void:
 	_refresh()
 	add_child(TutorialScript.new())
 	add_child(ScreensScene.instantiate())
+	add_child(EnemyIntroScene.instantiate())
+	add_child(DecreeScene.instantiate())
 
 
 func _draw() -> void:

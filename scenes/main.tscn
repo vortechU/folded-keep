@@ -1,57 +1,69 @@
-[gd_scene load_steps=10 format=3]
+[gd_scene format=4 uid="uid://btxjl23qutwv7"]
 
-[ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
-[ext_resource type="Script" path="res://scripts/world/paper.gd" id="2_paper"]
-[ext_resource type="Script" path="res://scripts/world/splats.gd" id="3_splats"]
-[ext_resource type="Shader" path="res://shaders/fold.gdshader" id="4_fold"]
-[ext_resource type="Script" path="res://scripts/fold/fold_controller.gd" id="5_foldctl"]
-
-[ext_resource type="Script" path="res://scripts/game/build_controller.gd" id="6_build"]
-[ext_resource type="Script" path="res://scripts/ui/hud.gd" id="7_hud"]
+[ext_resource type="Script" uid="uid://cvv6pkjn5tfy5" path="res://scripts/main.gd" id="1_main"]
+[ext_resource type="Script" uid="uid://car85avn62tk5" path="res://scripts/world/paper.gd" id="2_paper"]
+[ext_resource type="Script" uid="uid://cudpbm1xr35ra" path="res://scripts/world/splats.gd" id="3_splats"]
+[ext_resource type="Shader" uid="uid://bdw4gi82r3f00" path="res://shaders/fold.gdshader" id="4_fold"]
+[ext_resource type="Script" uid="uid://nd4m28q3gq24" path="res://scripts/fold/fold_controller.gd" id="5_foldctl"]
+[ext_resource type="Script" uid="uid://bcubgdk5jkc6s" path="res://scripts/game/build_controller.gd" id="6_build"]
+[ext_resource type="Script" uid="uid://mf3ms2l45n2v" path="res://scripts/ui/hud.gd" id="7_hud"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_fold"]
 shader = ExtResource("4_fold")
+shader_parameter/map_size = Vector2(360, 640)
+shader_parameter/fold_active = false
+shader_parameter/fold_point = Vector2(0, 0)
+shader_parameter/fold_normal = Vector2(1, 0)
+shader_parameter/lift = 0.0
+shader_parameter/flash = 0.0
+shader_parameter/table_color = Color(0.165, 0.114, 0.078, 1)
+shader_parameter/back_color = Color(0.86, 0.79, 0.62, 1)
+shader_parameter/crease_count = 0
+shader_parameter/creases = PackedVector4Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+shader_parameter/hole_count = 0
+shader_parameter/holes = PackedVector3Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 
-[node name="Main" type="Node2D"]
+[node name="Main" type="Node2D" unique_id=1016945517]
 script = ExtResource("1_main")
 
-[node name="MapViewport" type="SubViewport" parent="."]
+[node name="MapViewport" type="SubViewport" parent="." unique_id=10395930]
 disable_3d = true
-canvas_item_default_texture_filter = 1
 size = Vector2i(360, 640)
 render_target_update_mode = 4
 
-[node name="World" type="Node2D" parent="MapViewport"]
+[node name="World" type="Node2D" parent="MapViewport" unique_id=1367333266]
 
-[node name="Paper" type="Node2D" parent="MapViewport/World"]
+[node name="Paper" type="Node2D" parent="MapViewport/World" unique_id=1324162866]
 script = ExtResource("2_paper")
 
-[node name="Splats" type="Node2D" parent="MapViewport/World"]
+[node name="Splats" type="Node2D" parent="MapViewport/World" unique_id=1351368568]
 script = ExtResource("3_splats")
 
-[node name="Buildings" type="Node2D" parent="MapViewport/World"]
+[node name="Buildings" type="Node2D" parent="MapViewport/World" unique_id=1366035706]
 
-[node name="Units" type="Node2D" parent="MapViewport/World"]
+[node name="Units" type="Node2D" parent="MapViewport/World" unique_id=845698683]
 y_sort_enabled = true
 
-[node name="Board" type="Node2D" parent="."]
+[node name="Board" type="Node2D" parent="." unique_id=1191387486]
 
-[node name="MapDisplay" type="Sprite2D" parent="Board"]
+[node name="MapDisplay" type="Sprite2D" parent="Board" unique_id=1807201845]
 material = SubResource("ShaderMaterial_fold")
 centered = false
 
-[node name="FoldController" type="Node2D" parent="Board"]
+[node name="FoldController" type="Node2D" parent="Board" unique_id=372177732]
 script = ExtResource("5_foldctl")
 
-[node name="BuildController" type="Node2D" parent="Board"]
+[node name="BuildController" type="Node2D" parent="Board" unique_id=208409531]
 script = ExtResource("6_build")
 
-[node name="UI" type="CanvasLayer" parent="."]
+[node name="UI" type="CanvasLayer" parent="." unique_id=450046604]
 
-[node name="Hud" type="Control" parent="UI"]
+[node name="Hud" type="Control" parent="UI" unique_id=1237052162]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 mouse_filter = 2
 script = ExtResource("7_hud")
