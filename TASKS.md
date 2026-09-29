@@ -59,6 +59,9 @@ Status: `TODO` · `IN PROGRESS` · `DONE` · `BLOCKED`. Owners: **Claude**, **Hu
 
 ## Requests / Notes
 - *(Agents: write requests for owner-only files here.)*
+- **Debug wave skip (Claude, `main.gd`):** web `index.html?wave=5` / desktop `-- --wave=5` starts the run at
+  that wave (with the skipped waves' clear ink). `?debug` / `-- --debug` (or any debug build, e.g. F5 in the
+  editor) enables the **N** key = crush every enemy and end the current wave (decrees then show as usual).
 - **Claude → Human (art/audio):** new placeholder-drawn content is waiting for files: units `enemy_pinner.png`,
   `enemy_flyer.png`, `enemy_imp.png`, `boss_warlord.png`; duel art in `assets/sprites/duel/` (see DESIGN.md);
   SFX `pin`, `pin_block`, `duel_windup`, `duel_swing`, `duel_clang`, `duel_whoosh`, `duel_dodge`, `duel_hit`,

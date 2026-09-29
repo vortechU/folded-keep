@@ -39,6 +39,7 @@ var _origin := Vector2.ZERO ## where the map sits on screen (centered; the table
 var _autotest := false
 var _introduced := {} ## enemy kinds seen this run
 var _dueling := false
+var _debug := false ## wave-skip key on (see _read_debug_args)
 
 
 func _ready() -> void:
@@ -67,6 +68,7 @@ func _ready() -> void:
 	_add_building("tower", Vector2(45, 250), Vector2(22, 22))
 	_add_building("tower", Vector2(315, 400), Vector2(22, 22))
 
+	_read_debug_args()
 	Events.ink_changed.emit(ink)
 	Events.keep_hp_changed.emit(keep_hp, Waves.KEEP_MAX_HP)
 	Events.wave_changed.emit(wave + 1, Waves.LIST.size())
@@ -74,6 +76,41 @@ func _ready() -> void:
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--autotest="):
 			_run_autotest(arg.trim_prefix("--autotest="))
+
+
+## Debug options, for playtesting later waves quickly:
+##   web:     index.html?wave=5  (or ?debug)     desktop: -- --wave=5  (or -- --debug)
+## `wave=N` starts the run at wave N (with the wave-clear ink of the skipped waves).
+## In debug mode (also any debug build) the N key clears the current wave.
+func _read_debug_args() -> void:
+	var args: Array[String] = []
+	args.assign(OS.get_cmdline_user_args())
+	if OS.has_feature("web"):
+		var query: Variant = JavaScriptBridge.eval("window.location.search", true)
+		if query is String:
+			for part in (query as String).trim_prefix("?").split("&", false):
+				args.append("--" + part)
+	_debug = OS.is_debug_build()
+	for arg in args:
+		if arg == "--debug":
+			_debug = true
+		elif arg.begins_with("--wave="):
+			_debug = true
+			var start := clampi(arg.trim_prefix("--wave=").to_int(), 1, Waves.LIST.size()) - 1
+			wave = start
+			ink += Waves.WAVE_BONUS_INK * start
+
+
+## Debug: crush every enemy on the map and drop the rest of the wave, so it ends normally.
+func _debug_clear_wave() -> void:
+	if phase != Phase.WAVE or _dueling:
+		return
+	_queue.clear()
+	for u in get_tree().get_nodes_in_group("enemy"):
+		if u.is_alive():
+			u.crushes_to_kill = 1
+			u.on_crushed()
+	_check_wave_end.call_deferred()
 
 
 ## Wind curls on the paper, cloud shadows over everything, and ambient life (sheep, smoke, birds).
@@ -388,6 +425,8 @@ func _layout() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and event.keycode == KEY_R:
 		get_tree().reload_current_scene()
+	elif _debug and event is InputEventKey and event.pressed and event.keycode == KEY_N:
+		_debug_clear_wave()
 	elif phase == Phase.OVER and event is InputEventMouseButton and event.pressed:
 		Events.restart_requested.emit()
 
