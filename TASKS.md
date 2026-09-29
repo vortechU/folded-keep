@@ -53,6 +53,7 @@ Status: `TODO` · `IN PROGRESS` · `DONE` · `BLOCKED`. Owners: **Claude**, **Hu
 | 22c | 12-wave run with mid-boss at wave 6 (spec in DESIGN.md), retune waves.gd | Claude | DONE: 12 waves in `waves.gd`, Iron Warlord (`warlord`, 2 crushes) leads wave 6, Siege Ram wave 12. Test: `scenes/tests/run_test.tscn` (full run, decree picks, both bosses) |
 | 23 | Duel of Champions: first-person boss duel (spec in DESIGN.md) | Claude | DONE: `scenes/duel/duel.tscn` + `scripts/duel/duel.gd`, triggered by `main.gd` `_duel()` for both bosses; placeholder art in code, loads `assets/sprites/duel/*.png` when present. Test: `scenes/tests/duel_test.tscn` |
 | 24 | Ink look: line boil + ink reveal on units/buildings | Claude | DONE: `shaders/ink.gdshader` (one material per unit/building, `reveal` 0..1, 4 fps boil). Units ink in as they step onto the map (+ quill scribble fx), crushed units soak away, stamps soak in, splats bleed outward. Test: `scenes/tests/ink_test.tscn` |
+| 25 | Living map: wind curls, aged paper, cloud shadows | Claude | DONE: `scripts/world/wind.gd` (quill wind strokes along a flow field, added by `main._add_atmosphere`), `shaders/paper.gdshader` (baked once into a texture by `paper.gd`), `shaders/clouds.gdshader` (overlay above units). All inside the map, so they fold with it. |
 
 ## Requests / Notes
 - *(Agents: write requests for owner-only files here.)*

@@ -47,6 +47,11 @@ func _run() -> void:
 	await _map("e_crush_dissolve")
 	await _wait(0.6)
 	await _map("f_splat_bled")
+	# atmosphere: aged paper, wind curls drawing on and blowing away, cloud shadows
+	await _wait(1.5)
+	await _map("g_atmosphere_1")
+	await _wait(2.5)
+	await _map("g_atmosphere_2")
 	print("INK done")
 	get_tree().quit()
 

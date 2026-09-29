@@ -11,11 +11,17 @@ var roads: Array[PackedVector2Array] = [
 	PackedVector2Array([Vector2(295, -10), Vector2(280, 140), Vector2(220, 260), Vector2(240, 380), Vector2(195, 480), KEEP_POS]),
 ]
 
+const PaperShader := preload("res://shaders/paper.gdshader")
+## The map renders at 2x (main.gd RENDER_SCALE); the aged-paper texture is baked at that size.
+const BAKE_SCALE := 2
+
 var _stains: Array = []
 var _trees: Array = []
+var _base: Texture2D
 
 
 func _ready() -> void:
+	_bake()
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 7
 	for i in 70:
@@ -25,6 +31,23 @@ func _ready() -> void:
 		if _near_road(p, 22.0):
 			continue
 		_trees.append(p.round())
+
+
+## Render the aged parchment once into a texture (the shader never runs again).
+func _bake() -> void:
+	var vp := SubViewport.new()
+	vp.size = Vector2i(SIZE * BAKE_SCALE)
+	vp.disable_3d = true
+	vp.render_target_update_mode = SubViewport.UPDATE_ONCE
+	var rect := ColorRect.new()
+	rect.size = SIZE * BAKE_SCALE
+	var mat := ShaderMaterial.new()
+	mat.shader = PaperShader
+	mat.set_shader_parameter("seed", 3.0)
+	rect.material = mat
+	vp.add_child(rect)
+	add_child(vp)
+	_base = vp.get_texture()
 
 
 ## Closest point on any road: {"point", "dir" (road direction), "dist"}.
@@ -50,6 +73,8 @@ func _near_road(p: Vector2, dist: float) -> bool:
 
 func _draw() -> void:
 	draw_rect(Rect2(Vector2.ZERO, SIZE), Palette.PARCHMENT)
+	if _base:
+		draw_texture_rect(_base, Rect2(Vector2.ZERO, SIZE), false)
 	for s in _stains:
 		draw_circle(s[0], s[1], Color(Palette.PARCHMENT_SHADOW, s[2]))
 	# cartographer's frame

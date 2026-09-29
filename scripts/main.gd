@@ -5,6 +5,7 @@ extends Node2D
 const UnitScript := preload("res://scripts/units/unit.gd")
 const BuildingScript := preload("res://scripts/buildings/building.gd")
 const DuelScene := preload("res://scenes/duel/duel.tscn")
+const CloudsShader := preload("res://shaders/clouds.gdshader")
 ## Ink for beating the Iron Warlord in his duel.
 const DUEL_REWARD := 12
 ## Keep damage when the Champion loses a duel (never drops the Keep below 1).
@@ -60,6 +61,7 @@ func _ready() -> void:
 	Events.restart_requested.connect(func(): get_tree().reload_current_scene())
 	Events.decree_chosen.connect(_on_decree_chosen)
 	Decrees.reset()
+	_add_atmosphere()
 
 	_add_building("keep", Paper.KEEP_POS + Vector2(0, 10), Vector2(76, 44))
 	_add_building("tower", Vector2(45, 250), Vector2(22, 22))
@@ -72,6 +74,22 @@ func _ready() -> void:
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--autotest="):
 			_run_autotest(arg.trim_prefix("--autotest="))
+
+
+## Wind curls on the paper (under splats and buildings) and cloud shadows over everything.
+func _add_atmosphere() -> void:
+	var world := $MapViewport/World
+	var wind := Wind.new()
+	world.add_child(wind)
+	world.move_child(wind, paper.get_index() + 1)
+	var clouds := Node2D.new()
+	clouds.name = "Clouds"
+	var mat := ShaderMaterial.new()
+	mat.shader = CloudsShader
+	mat.set_shader_parameter("drift", Wind.DIR * Wind.SPEED)
+	clouds.material = mat
+	clouds.draw.connect(func(): clouds.draw_rect(Rect2(Vector2.ZERO, Paper.SIZE), Color.WHITE))
+	world.add_child(clouds)
 
 
 # --- phases ---------------------------------------------------------------------------
