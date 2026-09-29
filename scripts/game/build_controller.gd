@@ -68,7 +68,7 @@ func can_place(kind: String, pos: Vector2, rot: float) -> bool:
 	if kind == "wall":
 		if road.dist > 1.0:
 			return false
-	elif road.dist < 16.0:
+	elif road.dist < 16.0 or paper.on_water(pos):
 		return false
 	var probe := Building.new()
 	probe.size = SIZES[kind]

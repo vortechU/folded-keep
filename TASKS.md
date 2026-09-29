@@ -54,6 +54,7 @@ Status: `TODO` · `IN PROGRESS` · `DONE` · `BLOCKED`. Owners: **Claude**, **Hu
 | 23 | Duel of Champions: first-person boss duel (spec in DESIGN.md) | Claude | DONE: `scenes/duel/duel.tscn` + `scripts/duel/duel.gd`, triggered by `main.gd` `_duel()` for both bosses; placeholder art in code, loads `assets/sprites/duel/*.png` when present. Test: `scenes/tests/duel_test.tscn` |
 | 24 | Ink look: line boil + ink reveal on units/buildings | Claude | DONE: `shaders/ink.gdshader` (one material per unit/building, `reveal` 0..1, 4 fps boil). Units ink in as they step onto the map (+ quill scribble fx), crushed units soak away, stamps soak in, splats bleed outward. Test: `scenes/tests/ink_test.tscn` |
 | 25 | Living map: wind curls, aged paper, cloud shadows | Claude | DONE: `scripts/world/wind.gd` (quill wind strokes along a flow field, added by `main._add_atmosphere`), `shaders/paper.gdshader` (baked once into a texture by `paper.gd`), `shaders/clouds.gdshader` (overlay above units). All inside the map, so they fold with it. |
+| 26 | Old-map decoration | Claude | DONE: `scripts/world/decor.gd` (river + lake with a sea serpent, hatched hills, forests, title banner, compass rose, scale bar) baked once into the paper texture; bridges drawn over the roads in `paper.gd`. Can't build on water (`Paper.on_water`). |
 
 ## Requests / Notes
 - *(Agents: write requests for owner-only files here.)*
