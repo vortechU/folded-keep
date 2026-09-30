@@ -15,7 +15,8 @@ const InkShader := preload("res://shaders/ink.gdshader")
 ## Painted sprites (see ART_BRIEF.md). Kinds without one use the placeholder drawing below.
 const SPRITE_DIR := "res://assets/sprites/buildings/"
 ## On-map width of each sprite in base pixels (height follows the image).
-const SPRITE_WIDTH := {"keep": 84.0, "tower": 30.0, "wall": 38.0, "barracks": 34.0}
+const SPRITE_WIDTH := {"keep": 84.0, "tower": 30.0, "archer_tower": 30.0,
+	"wall": 38.0, "barracks": 34.0}
 static var _textures := {}
 
 var hp := 0

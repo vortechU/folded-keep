@@ -1,13 +1,20 @@
 extends Node
+const WeatherAudio := preload("res://scripts/autoload/weather_audio.gd")
 ## Global music and sound effects. Missing human-made assets are intentionally silent.
 
 const MUSIC_NAMES := ["menu", "battle", "boss", "victory", "defeat"]
 const SFX_NAMES := [
 	"paper_grab", "paper_fold", "slam", "crush", "splat", "stamp",
-	"ink_gain", "keep_hit", "wave_horn", "tear", "ui_click", "pin", "pin_block",
+	"ink_gain", "keep_hit", "wave_horn", "tear", "ui_click", "ui_cancel", "pin", "pin_block",
 	"duel_windup", "duel_swing", "duel_clang", "duel_whoosh", "duel_hurt", "duel_hit",
-	"duel_stagger", "duel_dodge",
+	"duel_stagger", "duel_dodge", "baa", "thunder", "wind_gust",
 ]
+## Looping weather beds in `assets/audio/ambience/` (Weather sets one per wave).
+const AMBIENCE_NAMES := ["rain", "storm"]
+const AMBIENCE_VOLUME_DB := -12.0
+const AMBIENCE_FADE := 2.0
+## Alternate takes `<name>_2`, `<name>_3`, ... are picked at random when present.
+const MAX_VARIANTS := 4
 const SFX_POOL_SIZE := 8
 const MUSIC_VOLUME_DB := -14.0
 const SFX_VOLUME_DB := -5.0
@@ -16,8 +23,11 @@ const SILENCE_DB := -60.0
 const BOSS_CHECK_SECONDS := 0.5
 
 var _streams: Dictionary = {}
+var _variant_counts: Dictionary = {} ## sfx name -> how many takes exist
 var _music_players: Array[AudioStreamPlayer] = []
 var _sfx_players: Array[AudioStreamPlayer] = []
+var _ambience: AudioStreamPlayer
+var _ambience_tween: Tween
 var _active_music := -1
 var _outgoing_music := -1
 var _current_track := ""
@@ -43,6 +53,10 @@ func _ready() -> void:
 		player.volume_db = SFX_VOLUME_DB
 		add_child(player)
 		_sfx_players.append(player)
+	_ambience = AudioStreamPlayer.new()
+	_ambience.name = "Ambience"
+	_ambience.volume_db = SILENCE_DB
+	add_child(_ambience)
 	Events.phase_changed.connect(_on_phase_changed)
 	Events.slammed.connect(_on_slammed)
 	Events.unit_crushed.connect(_on_unit_crushed)
@@ -50,7 +64,7 @@ func _ready() -> void:
 	Events.ink_changed.connect(_on_ink_changed)
 	Events.keep_hit.connect(_on_keep_hit)
 	Events.boss_spawned.connect(_on_boss_spawned)
-	Events.build_requested.connect(_on_build_requested)
+	Events.decree_chosen.connect(_on_decree_chosen)
 	Events.start_wave_requested.connect(_on_start_wave_requested)
 	Events.restart_requested.connect(_on_restart_requested)
 	play_music("menu")
@@ -94,9 +108,28 @@ func play_music(name: String) -> void:
 	player.stop()
 	player.stream = stream
 	_set_music_gain(player, 0.0)
-	player.play()
+	_start_player(player)
 	_current_track = name
 	_fade_time = 0.0
+
+
+## Fades the looping weather bed to `name` ("" = silence). Missing files stay silent.
+func set_ambience(name: String) -> void:
+	var stream: AudioStream = _get_stream("ambience", name, ["ogg", "wav", "mp3"]) if AMBIENCE_NAMES.has(name) else null
+	if stream != null and _ambience.playing and _ambience.stream == stream:
+		return
+	if _ambience_tween:
+		_ambience_tween.kill()
+	_ambience_tween = create_tween()
+	if _ambience.playing:
+		_ambience_tween.tween_property(_ambience, "volume_db", SILENCE_DB, AMBIENCE_FADE * 0.5)
+	_ambience_tween.tween_callback(func():
+		_ambience.stop()
+		if stream != null:
+			_ambience.stream = stream
+			_start_player(_ambience))
+	if stream != null:
+		_ambience_tween.tween_property(_ambience, "volume_db", AMBIENCE_VOLUME_DB, AMBIENCE_FADE)
 
 
 func stop_music() -> void:
@@ -111,10 +144,11 @@ func stop_music() -> void:
 	_current_track = ""
 
 
-func play_sfx(name: String) -> void:
+## `volume_db` is relative to the normal SFX volume.
+func play_sfx(name: String, volume_db := 0.0) -> void:
 	if not SFX_NAMES.has(name):
 		return
-	var stream := _get_stream("sfx", name, ["ogg", "wav", "mp3"])
+	var stream := _get_stream("sfx", _pick_variant(name), ["ogg", "wav", "mp3"])
 	if stream == null:
 		return
 	var chosen := _next_sfx_player
@@ -127,7 +161,25 @@ func play_sfx(name: String) -> void:
 	var player := _sfx_players[chosen]
 	player.stop()
 	player.stream = stream
-	player.play()
+	player.volume_db = SFX_VOLUME_DB + volume_db
+	_start_player(player)
+
+
+## The headless Dummy audio server never mixes; creating playback there retains Ogg
+## decoders until process exit. Keep loading streams for validation, skip silent playback.
+func _start_player(player: AudioStreamPlayer) -> void:
+	if DisplayServer.get_name() != "headless":
+		player.play()
+
+
+func _pick_variant(name: String) -> String:
+	if not _variant_counts.has(name):
+		var count := 1
+		while count < MAX_VARIANTS and _get_stream("sfx", "%s_%d" % [name, count + 1], ["ogg", "wav", "mp3"]) != null:
+			count += 1
+		_variant_counts[name] = count
+	var pick := randi() % int(_variant_counts[name])
+	return name if pick == 0 else "%s_%d" % [name, pick + 1]
 
 
 func _get_stream(folder: String, name: String, extensions: Array[String]) -> AudioStream:
@@ -141,7 +193,7 @@ func _get_stream(folder: String, name: String, extensions: Array[String]) -> Aud
 		var stream := ResourceLoader.load(path) as AudioStream
 		if stream == null:
 			continue
-		if folder == "music":
+		if folder == "music" or folder == "ambience":
 			var should_loop := name != "victory" and name != "defeat"
 			if stream is AudioStreamMP3:
 				(stream as AudioStreamMP3).loop = should_loop
@@ -152,7 +204,23 @@ func _get_stream(folder: String, name: String, extensions: Array[String]) -> Aud
 				(stream as AudioStreamWAV).loop_end = (stream as AudioStreamWAV).data.size() / maxi(1, (2 if (stream as AudioStreamWAV).stereo else 1) * (2 if (stream as AudioStreamWAV).format == AudioStreamWAV.FORMAT_16_BITS else 1))
 		_streams[key] = stream
 		return stream
+	if folder == "ambience" or (folder == "sfx" and name in ["thunder", "wind_gust"]):
+		var stream := WeatherAudio.make_sound(name)
+		if stream != null:
+			_streams[key] = stream
+			return stream
 	return null
+
+
+func _exit_tree() -> void:
+	if _ambience_tween:
+		_ambience_tween.kill()
+	for child in get_children():
+		if child is AudioStreamPlayer:
+			var player := child as AudioStreamPlayer
+			player.stop()
+			player.stream = null
+	_streams.clear()
 
 
 func _set_music_gain(player: AudioStreamPlayer, gain: float) -> void:
@@ -216,7 +284,8 @@ func _on_boss_spawned() -> void:
 	play_music("boss")
 
 
-func _on_build_requested(_kind: String) -> void:
+## Build buttons click (or cancel) in main.gd, which knows whether the request was accepted.
+func _on_decree_chosen(_id: String) -> void:
 	play_sfx("ui_click")
 
 

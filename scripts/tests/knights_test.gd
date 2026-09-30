@@ -26,12 +26,19 @@ func _run() -> void:
 	await _wait(0.8)
 	await _shot("40_barracks")
 	_main._start_wave()
+	var road: PackedVector2Array = _main.paper.roads[0]
+	var k := _nearest(road, Vector2(80, 120))
 	for i in 3:
 		var g: Unit = _main._spawn_enemy("grunt")
-		g.path = _main.paper.roads[0]
-		g.position = g.path[1] + Vector2(0, -i * 14.0)
-		g.path_index = 2
-	await _wait(9.0)
+		g.path = road
+		g.position = road[k] + Vector2(0, -i * 14.0)
+		g.path_index = k + 1
+	# wait for the grunts to walk into the knights (up to 14 s)
+	for i in 28:
+		await _wait(0.5)
+		if i >= 17 and get_tree().get_nodes_in_group("enemy").any(func(e): return e.foe != null):
+			await _wait(0.6)
+			break
 	await _shot("41_melee")
 	var knights := get_tree().get_nodes_in_group("ally").size()
 	var pinned := get_tree().get_nodes_in_group("enemy").filter(func(e): return e.foe != null).size()
@@ -52,6 +59,15 @@ func _run() -> void:
 	print("KNIGHTS alive=%d enemies=%d kills=%d" % [get_tree().get_nodes_in_group("ally").filter(func(k): return k.is_alive()).size(),
 		get_tree().get_nodes_in_group("enemy").size(), _main.kills])
 	get_tree().quit()
+
+
+## Index of the road waypoint closest to p.
+func _nearest(road: PackedVector2Array, p: Vector2) -> int:
+	var best := 0
+	for i in road.size():
+		if road[i].distance_to(p) < road[best].distance_to(p):
+			best = i
+	return best
 
 
 func _wait(sec: float) -> void:

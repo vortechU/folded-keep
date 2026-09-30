@@ -51,8 +51,8 @@ func _run() -> void:
 	print("ENEMIES flyer after landing-zone slam alive=%s stun=%.1f" % [not _dead(crow), crow.stun])
 	crow.position = Vector2(300, 300)
 	await _fold(fold, Vector2(360, 300), Vector2(100, 300), "75_flyer_flip_aim")
-	print("ENEMIES flyer flipped to x=%.0f" % crow.position.x)
-	crow.position = Vector2(330, 590)
+	print("ENEMIES flyer flip kills it: %s" % _dead(crow))
+	crow = _enemy("flyer", Vector2(330, 590))
 	await _fold(fold, Vector2(360, 420), Vector2(130, 200), "76_flyer_fling_aim")
 	print("ENEMIES flyer flung=%s" % _dead(crow))
 	var hp_before: int = _main.keep_hp

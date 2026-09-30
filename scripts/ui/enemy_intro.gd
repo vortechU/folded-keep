@@ -1,6 +1,8 @@
 extends Control
 ## Brief, input-transparent field note when a new enemy first appears.
 
+const Style := preload("res://scripts/ui/ui_style.gd")
+
 const INK := Color("#3A2A1C")
 const SEPIA := Color("#6E4B2A")
 const PAPER := Color("#EAD9B0")
@@ -8,7 +10,7 @@ const WAX := Color("#A8322D")
 
 const INTRO := {
 	"pinner": {"name": "PIN-BEARER", "tip": "Nails a corner of the map. You can't fold near him until he's gone."},
-	"flyer": {"name": "CROW RIDER", "tip": "Flies over walls. Can't be crushed: flip it, or fling it off the map!"},
+	"flyer": {"name": "CROW RIDER", "tip": "Immune to crushes and slaps. One flip or two Archer Tower arrows kill it."},
 	"imp": {"name": "INK IMP", "tip": "Gnaws the paper. If it finishes, the map tears."},
 }
 
@@ -44,28 +46,25 @@ func _ready() -> void:
 func _draw() -> void:
 	if _current == "":
 		return
-	var center_x := size.x * 0.5
-	draw_rect(Rect2(center_x - 149, 58, 298, 112), INK)
-	draw_rect(Rect2(center_x - 145, 62, 290, 104), PAPER)
-	draw_rect(Rect2(center_x - 139, 68, 278, 92), SEPIA, false, 1.0)
-	draw_line(Vector2(center_x - 120, 104), Vector2(center_x + 120, 104), SEPIA, 1.0)
-	draw_circle(Vector2(center_x - 132, 88), 2.0, WAX)
-	draw_circle(Vector2(center_x + 132, 88), 2.0, WAX)
+	Style.sheet(self, Rect2(32, 84, 296, 98))
 
 
 func _label(font_size: int, color: Color) -> Label:
 	var label := Label.new()
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	label.add_theme_font_size_override("font_size", font_size)
+	if font_size >= 17:
+		label.add_theme_font_override("font", Style.TITLE_FONT)
+		label.add_theme_font_size_override("font_size", 23)
 	label.add_theme_color_override("font_color", color)
 	return label
 
 
 func _layout() -> void:
 	var left := size.x * 0.5 - 125
-	_name_label.position = Vector2(left, 73)
+	_name_label.position = Vector2(left, 94)
 	_name_label.size = Vector2(250, 29)
-	_tip_label.position = Vector2(left, 111)
+	_tip_label.position = Vector2(left, 128)
 	_tip_label.size = Vector2(250, 49)
 
 

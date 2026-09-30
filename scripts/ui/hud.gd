@@ -1,25 +1,21 @@
 extends Control
-## Parchment HUD. Gameplay state and requests pass exclusively through Events.
-
+## Campaign HUD. State and gameplay requests pass exclusively through Events.
+const Style := preload("res://scripts/ui/ui_style.gd")
+const Accessibility := preload("res://scripts/ui/accessibility_settings.gd")
 const ScreensScene := preload("res://scenes/ui/game_screens.tscn")
 const DecreeScene := preload("res://scenes/ui/royal_decrees.tscn")
 const EnemyIntroScene := preload("res://scenes/ui/enemy_intro.tscn")
 const TutorialScript := preload("res://scripts/ui/fold_tutorial.gd")
-
-const PANEL := Color("#2A1D14")
-const WAX := Color("#A8322D")
-const WAX_LIT := Color("#C64B3D")
-const WAX_DARK := Color("#75231F")
-const GOLD := Color("#D9A43A")
-const PAPER := Color("#EAD9B0")
-const INK := Color("#3A2A1C")
-const BLUE := Color("#5B7FC0")
-
+const HELP := {
+	"tower": "Stamp on open paper. Fold a tower onto enemies to crush them and drop a guard.",
+	"barracks": "Stamp on open paper. Two knights hold enemies on the nearest road.",
+	"wall": "Stamp across a road to block enemies. Fold the wall onto them to crush."
+}
 var _keep_hp := 0
 var _keep_max_hp := 0
 var _ink := 0
 var _wave := 0
-var _total_waves := 0
+var _total_waves := 12
 var _phase := "build"
 var _selected_kind := ""
 var _buttons: Dictionary = {}
@@ -30,181 +26,138 @@ var _phase_label: Label
 var _banner_panel: PanelContainer
 var _banner_label: Label
 var _banner_tween: Tween
-var _costs: Dictionary = {"tower": 4, "wall": 3}
-
+var _costs: Dictionary = {}
 
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_costs = Waves.COSTS
-	_keep_label = _label(Vector2(6, 2), Vector2(108, 18), 10)
-	_ink_label = _label(Vector2(126, 2), Vector2(94, 18), 10)
-	_wave_label = _label(Vector2(234, 2), Vector2(120, 18), 10)
-	_keep_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	_keep_label = Style.label("", Rect2(10, 0, 112, 21), 11, Style.PAPER)
+	_ink_label = Style.label("", Rect2(126, 0, 90, 21), 11, Style.PAPER)
+	_wave_label = Style.label("", Rect2(230, 0, 120, 21), 11, Style.PAPER)
 	_ink_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_wave_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_phase_label = _label(Vector2(0, 520), Vector2(360, 17), 9)
-	_phase_label.add_theme_color_override("font_color", GOLD)
+	for label in [_keep_label, _ink_label, _wave_label]:
+		add_child(label)
+	_phase_label = Style.label("", Rect2(40, 476, 280, 42), 12)
+	_phase_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_phase_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	add_child(_phase_label)
 	_make_banner()
-	# Keep the Keep (x 140-220, y 545-625) and the bottom edge clear: buttons sit in the
-	# side bands only (0-140 and 220-360), never over the Keep's footprint.
-	_buttons["tower"] = _seal("TOWER\n%d INK" % _costs.get("tower", 4), 6.0, func() -> void: _request_build("tower"))
-	_buttons["barracks"] = _seal("KNIGHTS\n%d INK" % _costs.get("barracks", 5), 74.0, func() -> void: _request_build("barracks"))
-	_buttons["wall"] = _seal("WALL\n%d INK" % _costs.get("wall", 3), 224.0, func() -> void: _request_build("wall"))
-	_buttons["fight"] = _seal("FIGHT!", 296.0, func() -> void: Events.start_wave_requested.emit())
-	Events.keep_hp_changed.connect(_on_keep_hp_changed)
-	Events.ink_changed.connect(_on_ink_changed)
-	Events.wave_changed.connect(_on_wave_changed)
+	# Stamps sit in two side columns so the keep (x 138-222) stays visible between them.
+	_buttons["tower"] = _build_button("Tower", "tower", Vector2(8, 526))
+	_buttons["barracks"] = _build_button("Barracks", "barracks", Vector2(8, 564))
+	_buttons["wall"] = _build_button("Wall", "wall", Vector2(226, 526))
+	var fight := Button.new()
+	fight.position = Vector2(226, 564)
+	fight.size = Vector2(126, 72)
+	fight.text = "To battle"
+	Style.button(fight, true)
+	fight.add_theme_font_override("font", Style.TITLE_FONT)
+	fight.add_theme_font_size_override("font_size", 21)
+	fight.pressed.connect(func() -> void: Events.start_wave_requested.emit())
+	add_child(fight)
+	_buttons["fight"] = fight
+	Events.keep_hp_changed.connect(func(hp: int, maximum: int) -> void:
+		_keep_hp = hp
+		_keep_max_hp = maximum
+		_refresh())
+	Events.ink_changed.connect(func(ink: int) -> void:
+		_ink = ink
+		if _selected_kind != "" and ink < int(_costs.get(_selected_kind, 0)):
+			_selected_kind = ""
+		_refresh())
+	Events.wave_changed.connect(func(wave: int, total: int) -> void:
+		_wave = wave
+		_total_waves = total
+		_refresh())
 	Events.phase_changed.connect(_on_phase_changed)
 	Events.banner.connect(_show_banner)
 	_refresh()
 	add_child(TutorialScript.new())
-	add_child(ScreensScene.instantiate())
 	add_child(EnemyIntroScene.instantiate())
 	add_child(DecreeScene.instantiate())
+	# Menus cover the entire HUD, including decree details.
+	add_child(ScreensScene.instantiate())
+	call_deferred("_apply_accessibility")
 
+func _apply_accessibility() -> void:
+	Accessibility.apply_to(self)
 
 func _draw() -> void:
-	# Dark wood rail keeps the top status readable over the parchment map. Kept <=22px
-	# tall per the HUD layout rules and always input-transparent (root mouse_filter IGNORE).
-	draw_rect(Rect2(0, 0, 360, 21), PANEL)
-	draw_rect(Rect2(0, 20, 360, 1), GOLD)
-	draw_line(Vector2(120, 3), Vector2(120, 17), GOLD.darkened(0.38), 1.0)
-	draw_line(Vector2(228, 3), Vector2(228, 17), GOLD.darkened(0.38), 1.0)
-	# The build bar only exists during the build phase, and even then it leaves the
-	# Keep's footprint (x 140-220, y 545-625) uncovered so it's always visible/grabbable.
+	draw_rect(Rect2(0, 0, 360, 22), Style.INK)
+	draw_line(Vector2(0, 21), Vector2(360, 21), Style.GOLD)
+	draw_line(Vector2(120, 5), Vector2(120, 16), Style.SEPIA)
+	draw_line(Vector2(226, 5), Vector2(226, 16), Style.SEPIA)
 	if _phase == "build":
-		draw_rect(Rect2(0, 548, 140, 92), PANEL)
-		draw_rect(Rect2(220, 548, 140, 92), PANEL)
-		draw_rect(Rect2(0, 548, 140, 2), GOLD)
-		draw_rect(Rect2(220, 548, 140, 2), GOLD)
+		Style.box(Style.PAPER, Style.GOLD).draw(get_canvas_item(), Rect2(32, 474, 296, 46))
 
-
-func _label(pos: Vector2, label_size: Vector2, font_size: int) -> Label:
-	var label := Label.new()
-	label.position = pos
-	label.size = label_size
-	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	label.add_theme_font_size_override("font_size", font_size)
-	label.add_theme_color_override("font_color", PAPER)
-	add_child(label)
-	return label
-
-
-func _make_banner() -> void:
-	_banner_panel = PanelContainer.new()
-	_banner_panel.position = Vector2(30, 264)
-	_banner_panel.size = Vector2(300, 76)
-	_banner_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color("#EAD9B0", 0.96)
-	style.border_color = INK
-	style.set_border_width_all(3)
-	style.set_corner_radius_all(7)
-	style.shadow_color = Color(0, 0, 0, 0.3)
-	style.shadow_size = 4
-	_banner_panel.add_theme_stylebox_override("panel", style)
-	add_child(_banner_panel)
-	_banner_label = Label.new()
-	_banner_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_banner_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_banner_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_banner_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_banner_label.add_theme_font_size_override("font_size", 18)
-	_banner_label.add_theme_color_override("font_color", INK)
-	_banner_panel.add_child(_banner_label)
-	_banner_panel.visible = false
-
-
-func _seal(caption: String, x: float, callback: Callable) -> Button:
+func _build_button(caption: String, kind: String, pos: Vector2) -> Button:
 	var button := Button.new()
-	button.position = Vector2(x, 571)
-	button.size = Vector2(64, 64)
-	button.text = caption
-	button.mouse_filter = Control.MOUSE_FILTER_STOP
-	button.add_theme_font_size_override("font_size", 10)
-	button.add_theme_color_override("font_color", PAPER)
-	button.add_theme_color_override("font_hover_color", PAPER)
-	button.add_theme_color_override("font_pressed_color", PAPER)
-	button.add_theme_color_override("font_disabled_color", Color("#B89A62"))
-	button.add_theme_stylebox_override("hover", _seal_style(WAX_LIT, GOLD))
-	button.add_theme_stylebox_override("pressed", _seal_style(WAX_DARK, PAPER))
-	button.add_theme_stylebox_override("disabled", _seal_style(Color("#62443A"), Color("#876D4B")))
-	button.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
-	button.pressed.connect(callback)
+	button.position = pos
+	button.size = Vector2(126 if pos.x > 180 else 128, 34)
+	Style.button(button)
+	button.text = "%s   %d" % [caption, _costs[kind]]
+	button.tooltip_text = "%s ink. %s" % [_costs[kind], HELP[kind]]
+	button.icon = load("res://assets/sprites/buildings/%s.png" % kind) as Texture2D
+	button.expand_icon = true
+	button.add_theme_constant_override("icon_max_width", 25)
+	button.add_theme_constant_override("h_separation", 4)
+	button.pressed.connect(_request_build.bind(kind))
 	add_child(button)
 	return button
-
-
-func _seal_style(fill: Color, ring: Color) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = fill
-	style.border_color = ring
-	style.set_border_width_all(3)
-	style.set_corner_radius_all(32)
-	style.shadow_color = Color(0, 0, 0, 0.35)
-	style.shadow_size = 3
-	return style
-
 
 func _request_build(kind: String) -> void:
 	_selected_kind = "" if _selected_kind == kind else kind
 	Events.build_requested.emit(kind)
 	_refresh()
 
-
-func _on_keep_hp_changed(hp: int, max_hp: int) -> void:
-	_keep_hp = hp
-	_keep_max_hp = max_hp
-	_refresh()
-
-
-func _on_ink_changed(ink: int) -> void:
-	_ink = ink
-	if _selected_kind != "" and ink < int(_costs.get(_selected_kind, 0)):
-		_selected_kind = ""
-	_refresh()
-
-
-func _on_wave_changed(wave: int, total: int) -> void:
-	_wave = wave
-	_total_waves = total
-	_refresh()
-
-
 func _on_phase_changed(phase: String) -> void:
 	_phase = phase
 	_selected_kind = ""
-	queue_redraw()
+	if phase == "victory" or phase == "defeat":
+		_banner_panel.hide()
 	_refresh()
 
-
 func _refresh() -> void:
-	_keep_label.text = "KEEP %d/%d" % [_keep_hp, _keep_max_hp]
-	_ink_label.text = "INK %d" % _ink
-	_wave_label.text = "WAVE %d/%d" % [_wave, _total_waves]
-	_phase_label.text = "STAMP A DEFENSE" if _phase == "build" else "FOLD AN EDGE TO STRIKE"
-	_phase_label.visible = _phase == "build" or _phase == "wave"
+	_keep_label.text = "KEEP  %d / %d" % [_keep_hp, _keep_max_hp]
+	_keep_label.add_theme_color_override("font_color", Color("ffb9a0") if _keep_hp <= 3 else Style.PAPER)
+	_ink_label.text = "INK  %d" % _ink
+	_wave_label.text = "WAVE  %d / %d" % [_wave, _total_waves]
+	_phase_label.text = HELP[_selected_kind] if _selected_kind != "" else "Prepare your defenses\nChoose a stamp · Costs shown in ink"
+	_phase_label.visible = _phase == "build"
 	for kind in ["tower", "barracks", "wall"]:
 		var button: Button = _buttons[kind]
 		button.visible = _phase == "build"
-		button.disabled = _ink < int(_costs.get(kind, 0))
-		button.add_theme_stylebox_override("normal", _seal_style(BLUE if _selected_kind == kind else WAX, PAPER if _selected_kind == kind else GOLD))
+		button.disabled = _ink < int(_costs[kind])
+		var selected: bool = _selected_kind == kind
+		button.add_theme_stylebox_override("normal", Style.box(Style.BLUE if selected else Style.LIGHT, Style.INK))
+		button.add_theme_color_override("font_color", Style.LIGHT if selected else Style.INK)
 	_buttons["fight"].visible = _phase == "build"
-	_buttons["fight"].add_theme_stylebox_override("normal", _seal_style(WAX, GOLD))
+	queue_redraw()
 
+func _make_banner() -> void:
+	_banner_panel = PanelContainer.new()
+	_banner_panel.position = Vector2(44, 191)
+	_banner_panel.size = Vector2(272, 54)
+	_banner_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_banner_panel.add_theme_stylebox_override("panel", Style.box(Style.PAPER, Style.SEPIA))
+	add_child(_banner_panel)
+	_banner_label = Style.label("", Rect2(), 21, Style.INK, true)
+	_banner_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_banner_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_banner_panel.add_child(_banner_label)
+	_banner_panel.hide()
 
 func _show_banner(message: String) -> void:
 	if _banner_tween and _banner_tween.is_running():
 		_banner_tween.kill()
-	_banner_label.text = message
-	_banner_panel.visible = true
-	_banner_panel.modulate.a = 1.0
-	if message.contains("\n"):
+	if _phase == "victory" or _phase == "defeat":
 		return
+	_banner_label.text = message
+	_banner_panel.show()
+	_banner_panel.modulate.a = 1.0
 	_banner_tween = create_tween()
-	_banner_tween.tween_interval(1.1)
-	_banner_tween.tween_property(_banner_panel, "modulate:a", 0.0, 0.35)
-	_banner_tween.tween_callback(func() -> void: _banner_panel.visible = false)
+	_banner_tween.tween_interval(2.2 if message.contains("\n") else 1.1)
+	_banner_tween.tween_property(_banner_panel, "modulate:a", 0.0, 0.3)
+	_banner_tween.tween_callback(_banner_panel.hide)

@@ -21,7 +21,7 @@ const KINDS := {
 	"ram": {"speed": 7.0, "slaps": 99, "slap_immune": true, "size": 2.2, "crushes": 3, "hp": 9999, "hit": 3},
 	# fold-aware enemies (DESIGN.md): they fight the map, not the Keep
 	"pinner": {"speed": 20.0, "slaps": 2, "slap_immune": false, "size": 1.3, "hp": 4, "hit": 1},
-	"flyer": {"speed": 19.0, "slaps": 99, "slap_immune": true, "size": 1.0, "hp": 99, "hit": 1},
+	"flyer": {"speed": 22.0, "slaps": 99, "slap_immune": true, "size": 1.0, "hp": 99, "hit": 1},
 	"imp": {"speed": 32.0, "slaps": 1, "slap_immune": false, "size": 0.8, "hp": 2, "hit": 1},
 	# mid-boss (wave 6): two crushes, shrugs off slaps, cleaves knights and walls
 	"warlord": {"speed": 9.0, "slaps": 99, "slap_immune": true, "size": 1.9, "crushes": 2, "hp": 9999, "hit": 3},
@@ -70,6 +70,8 @@ var gnaw_spot := Vector2.INF
 var gnaw := 0.0
 ## Left the map on its own (an imp diving through its tear): no ink for that.
 var escaped := false
+## Archer towers need two arrows to bring a Crow Rider down.
+var arrow_hits := 0
 
 var _alive := true
 var _t := 0.0
@@ -256,7 +258,9 @@ func _flyer_step(delta: float) -> void:
 	if to.length() < 6.0:
 		_arrive()
 		return
-	position += to.normalized() * speed * delta
+	# storm gusts blow Crow Riders off course (toward the edges, where folds can reach them)
+	position += (to.normalized() * speed + Weather.gust) * delta
+	position.x = clampf(position.x, 6.0, Paper.SIZE.x - 6.0)
 
 
 ## Ink Imp: run to a spot (usually next to one of your buildings) and gnaw until the map tears.
@@ -459,6 +463,21 @@ func is_flying() -> bool:
 	return kind == "flyer"
 
 
+func on_arrow_hit() -> void:
+	if not _alive or not is_flying():
+		return
+	arrow_hits += 1
+	_flash = 0.15
+	var fx := Fx.of(self)
+	if fx:
+		fx.star(position + Vector2(0, -8), Palette.GOLD)
+		fx.ring(position, 11.0, Palette.GOLD, 0.25)
+	if arrow_hits >= 2:
+		if fx:
+			fx.text(position + Vector2(0, -22), "SHOT DOWN!", Palette.GOLD)
+		on_crushed()
+
+
 ## Flung off the edge of the map by a huge fold: sails off the table, spinning.
 func on_flung(dir: Vector2) -> void:
 	if not _alive:
@@ -487,6 +506,11 @@ func on_flipped(to: Vector2) -> void:
 		fx.dust_ring(to, 8.0, 6)
 		fx.ring(to, 12.0, Palette.BLUE_LIGHT, 0.25)
 	position = to
+	if kind == "flyer":
+		if fx:
+			fx.text(to + Vector2(0, -24), "GROUNDED!", Palette.BLUE_LIGHT)
+		on_crushed()
+		return
 	stun = 1.0
 	# thrown off his corner / her gnawing spot: start over
 	planted = false
@@ -668,6 +692,8 @@ func _draw_sprite(tex: Texture2D) -> void:
 	draw_circle(Vector2.ZERO, w * 0.42, Color(Palette.INK, 0.25))
 	# waddle around the feet, mirrored to face the walking direction
 	var waddle := step * 0.07 if walking and kind != "ram" and lift == 0.0 else 0.0
+	if is_flying():
+		waddle = Weather.gust.x * 0.012 # banking in the wind
 	draw_set_transform(Vector2(0, 3 - bob - lift), waddle, Vector2(_face, 1.0))
 	var mod := Color(2.2, 2.2, 2.2) if _flash > 0.0 else Color.WHITE
 	draw_texture_rect(tex, Rect2(Vector2(-s.x * 0.5, -s.y), s), false, mod)

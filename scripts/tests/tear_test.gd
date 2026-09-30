@@ -33,11 +33,17 @@ func _run() -> void:
 	print("TEAR holes=%d" % fold.holes.size())
 	await _wait(0.4)
 	await _shot("51_torn")
+	var road: PackedVector2Array = _main.paper.roads[0]
 	for i in 4:
 		var g: Unit = _main._spawn_enemy("grunt")
-		g.path = _main.paper.roads[0]
+		g.path = road
 		g.position = Vector2(140, 232) + Vector2(0, -i * 16.0)
-		g.path_index = 3
+		# walk on from the waypoint just past the nearest one
+		var k := 0
+		for j in road.size():
+			if road[j].distance_to(g.position) < road[k].distance_to(g.position):
+				k = j
+		g.path_index = k + 1
 		g.speed = 30.0
 	await _wait(1.6)
 	await _shot("52_falling")

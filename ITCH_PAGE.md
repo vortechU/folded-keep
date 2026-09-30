@@ -22,31 +22,39 @@ Everything else gets slapped.
 - **Drag any edge of the map inward, then release** to slam it down. Red X = crushed,
   gold ring = slapped, blue line = flipped.
 - **Between waves**, spend Ink to stamp **towers** (heavy, they crush), **walls** (block the road)
-  and **barracks** (knights that hold enemies in place, which makes them perfect targets).
+  **barracks** (knights that hold enemies in place), and **Archer Towers** (two arrows shoot down a Crow Rider).
+  Regular towers attack through folds; each tower crush drops a temporary guard.
 - **Mind the paper.** Every slam leaves a crease. Where three creases meet, the map **rips open**.
   Enemies fall through the hole... and so do your buildings.
 - **Keep Slam:** fold the bottom edge up and slam your own castle onto the enemy. It hurts the
   Keep a little, but nothing hits harder.
-- Survive 7 waves, including the **Siege Ram**.
+- Survive **8 waves**. Face the **Iron Warlord** at wave 6 and the **Siege Ram** at wave 8.
+- Before each boss, fight a **Duel of Champions**: swipe away from side attacks, swipe up to
+  block overhead attacks, then tap to strike. Fill the stagger bar and fold the page for the finisher.
+- Choose a permanent **Royal Decree** between waves. Open the **Field guide** from the menu
+  or pause screen for fold rules and enemy counters.
 
 ### Controls
-One finger (or one mouse button). Drag from any edge to fold. Tap the wax seals to build.
+One finger (or one mouse button). Drag from any edge to fold. Tap the stamps to build.
+Tap **LOOK** during a wave for a closer view; drag to pan and tap **BACK** to return.
 Works on phones (portrait) and desktop.
 
 ### Features
 - A physical paper-folding mechanic: aim with a live preview of who gets crushed, slapped
   or flipped
 - The map remembers every battle: ink splats, creases and stitched-up tears stay for the whole run
-- 5 enemy types including the Siege Ram boss, 3 buildings, allied knights
+- 8 enemy types including two bosses, 4 buildable defenses, and allied knights
+- Pin-Bearers nail the map, Crow Riders fly over crushing folds, and Ink Imps chew holes in the paper
+- Royal Decrees, first-person boss duels, rain, fog, and storms that blow Crow Riders off course
+- A guided first tower crush, illustrated Field Guide, and a Royal Battle Report with an earned commendation
 - Hand-illustrated war-map art style
 
 ### Made with AI (SlapJam AI #1)
 Built in 48 hours for SlapJam AI #1 (theme: **Castles**), with AI tools for every part:
 - **Design & code:** Claude Code (Claude Opus 5.5) and Codex (ChatGPT), in Godot 4.7
 - **Art:** ChatGPT image generation
-- **Music:** Suno *(fill in when added)*
-- **Sound effects:** *(fill in: ElevenLabs / sfxr)*
-- **Voice:** fish.audio *(only if used)*
+- **Music:** Suno
+- **Sound effects:** imported audio-library sounds; rain recordings by Fesliyan Studios, thunder by CDanSantana, synthesized wind gusts
 
 Made by *(your name / team)*.
 
@@ -77,6 +85,11 @@ Made by *(your name / team)*.
 
 ## Refreshing the media
 After art or audio changes, re-export and re-capture:
+
+The current upload was exported from an isolated source copy with editor-only MCP tooling
+excluded. The add-on's export hook reports a Windows safe-save error in the main checkout;
+`builds/final_additions/rebuild_web.ps1` repeats the clean export and rebuilds the ZIP without
+changing the source project's settings.
 
 ```bash
 "C:/Apps/Godot_v4.7.2-stable_win64.exe/Godot.exe" --headless --path . --export-release "Web" builds/web/index.html

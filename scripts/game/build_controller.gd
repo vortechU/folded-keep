@@ -7,7 +7,8 @@ signal place_requested(kind: String, pos: Vector2, rot: float)
 signal disarmed
 
 const FINGER_OFFSET := Vector2(0, -26)
-const SIZES := {"tower": Vector2(22, 22), "wall": Vector2(34, 9), "barracks": Vector2(26, 20)}
+const SIZES := {"tower": Vector2(22, 22), "wall": Vector2(34, 9), "barracks": Vector2(26, 20),
+	"archer_tower": Vector2(22, 22)}
 const PLAY_RECT := Rect2(14, 34, 332, 520)
 
 var armed := ""
@@ -42,6 +43,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			_touching = false
 			if _valid:
 				place_requested.emit(armed, _ghost, _rot)
+			else:
+				Audio.play_sfx("ui_cancel")
 			queue_redraw()
 		get_viewport().set_input_as_handled()
 	elif event is InputEventMouseMotion and _touching:
@@ -88,8 +91,11 @@ func _draw() -> void:
 	var c := Palette.BLUE_LIGHT if _valid else Palette.RED
 	draw_set_transform(_ghost, _rot)
 	var s: Vector2 = SIZES[armed]
-	if armed == "tower":
+	if armed == "tower" or armed == "archer_tower":
 		draw_arc(Vector2.ZERO, s.x * 0.5, 0.0, TAU, 20, c, 1.5)
+		if armed == "archer_tower":
+			draw_line(Vector2(-5, -5), Vector2(5, 5), c, 1.5)
+			draw_line(Vector2(-5, 5), Vector2(5, -5), c, 1.5)
 	else:
 		draw_rect(Rect2(-s * 0.5, s), c, false, 1.5)
 	draw_set_transform(Vector2.ZERO)

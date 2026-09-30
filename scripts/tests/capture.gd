@@ -30,9 +30,9 @@ func _run() -> void:
 	_main._autotest = true
 	_main._set_ink(30)
 	# --- build phase: stamp defenses ---
-	_main._on_place_requested("barracks", Vector2(292, 300), 0.0)
+	_main._on_place_requested("barracks", Vector2(290, 264), 0.0)
 	_wall(Vector2(236, 350))
-	_main._on_place_requested("tower", Vector2(250, 190), 0.0)
+	_main._on_place_requested("tower", Vector2(226, 182), 0.0)
 	await _wait(2.2)
 	await _shot("shot_1_build")
 	# --- wave: a column on the left road, a fight on the right ---

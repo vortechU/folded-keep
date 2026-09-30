@@ -10,6 +10,10 @@ signal banner(text: String)
 
 # gameplay moments (for audio / juice)
 signal slammed(crushes: int)
+signal fold_lesson_changed(guide: Dictionary) # tower, enemy, grab, pointer, dragging, ready
+signal tower_crush_landed
+signal map_inspection_changed(active: bool)
+signal battle_report_ready(report: Dictionary) # final totals before victory/defeat
 signal unit_crushed(unit: Node)
 signal building_placed(kind: String, pos: Vector2)
 signal keep_hit

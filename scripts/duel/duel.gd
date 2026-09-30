@@ -33,6 +33,18 @@ const SWIPE_MIN := 34.0
 const EDGE_GRAB := 44.0
 const HINT_ROUNDS := 2 ## the answer arrow is shown for the first rounds (no fake-outs until after)
 const STEEL := Color("#b9bcc4")
+## Weapon art (`duel_<boss>_<weapon>.png`, head up): the grip on the haft as a fraction of the
+## texture size, and the drawn length. It pivots around the boss's hands on `_weapon`.
+const WEAPON_ART := {"axe": {"grip": Vector2(0.475, 0.70), "len": 255.0},
+	"maul": {"grip": Vector2(0.505, 0.72), "len": 250.0}}
+## Where each pose's fists are in the boss art (drawn at BOSS_H, relative to the feet): [left, right].
+const HANDS := {
+	"warlord": {"idle": [Vector2(-30, -160), Vector2(32, -160)], "windup": [Vector2(-27, -195), Vector2(27, -170)],
+		"hurt": [Vector2(-47, -212), Vector2(52, -152)]},
+	"driver": {"idle": [Vector2(-32, -157), Vector2(32, -157)], "windup": [Vector2(-40, -177), Vector2(-10, -167)],
+		"hurt": [Vector2(-37, -162), Vector2(57, -177)]},
+}
+const BOSS_H := 300.0
 
 @export var boss := "warlord"
 
@@ -61,6 +73,8 @@ var _boss_lean := 0.0
 var _boss_flash := 0.0
 var _weapon := -1.2 ## weapon angle around the boss's hands
 var _reach := 1.0 ## < 0: the weapon comes at the camera (overhead smash)
+var _blade := 1.0 ## -1: weapon art mirrored so the blade leads a swing from the left
+var _grip := Vector2(32, -160) ## where the weapon art pivots (eased toward the pose's hands)
 var _flat := 0.0 ## squashed by the finisher
 var _view_x := 0.0 ## the world slides when the Champion dodges
 var _shield := 0.0 ## 1 = raised
@@ -94,6 +108,7 @@ func _ready() -> void:
 	add_child(_ctl)
 	for k in ["idle", "windup", "hurt"]:
 		_tex[k] = _load("duel_%s_%s" % [boss, k])
+	_tex["weapon"] = _load("duel_%s_%s" % [boss, _data.weapon])
 	_tex["arm"] = _load("duel_champion_arm")
 	_tex["shield"] = _load("duel_champion_shield")
 	_tex["bg"] = _load("duel_bg")
@@ -169,6 +184,7 @@ func _windup(m: Move, dur: float) -> void:
 	tw.tween_property(self, "_boss_lean", lean, dur).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	tw.tween_property(self, "_weapon", ang, dur).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tw.tween_property(self, "_reach", 1.0, dur)
+	tw.tween_property(self, "_blade", -1.0 if m == Move.LEFT else 1.0, dur)
 	tw.tween_property(self, "_boss_scale", scl, dur)
 	tw.tween_property(self, "_boss_off", Vector2(0, -6), dur)
 	_glow = 1.0
@@ -215,12 +231,15 @@ func _impact(correct: bool) -> void:
 			_text(Vector2(180, 380), "DODGED!", Palette.PARCHMENT, 18, 0.7)
 			Audio.play_sfx("duel_whoosh")
 		_hurt_boss(COUNTER_DAMAGE)
+		Audio.play_sfx("duel_stagger")
 		# thrown off balance: open for a counter-attack
 		var tw := create_tween().set_parallel()
 		tw.tween_property(self, "_boss_lean", 0.06, 0.25)
 		tw.tween_property(self, "_boss_scale", Vector2(1.06, 0.95), 0.25)
 		tw.tween_property(self, "_boss_off", Vector2(0, 12), 0.25)
 		tw.tween_property(self, "_reach", 1.0, 0.25)
+		tw.tween_property(self, "_weapon", 1.1, 0.25) # guard dropped
+		tw.tween_property(self, "_blade", 1.0, 0.25)
 		tw.tween_property(self, "_view_x", 0.0, 0.3).set_delay(0.1)
 		tw.tween_property(self, "_shield", 0.0, 0.25).set_delay(0.1)
 		if stagger >= _data.stagger:
@@ -255,6 +274,7 @@ func _recover(dur: float) -> void:
 	tw.tween_property(self, "_boss_lean", 0.0, dur)
 	tw.tween_property(self, "_weapon", -1.2, dur)
 	tw.tween_property(self, "_reach", 1.0, dur)
+	tw.tween_property(self, "_blade", 1.0, dur)
 	tw.tween_property(self, "_boss_scale", Vector2.ONE, dur)
 	tw.tween_property(self, "_boss_off", Vector2.ZERO, dur)
 
@@ -351,6 +371,7 @@ func _process(delta: float) -> void:
 	_red = maxf(0.0, _red - delta * 2.5)
 	_white = maxf(0.0, _white - delta * 3.0)
 	_shake = maxf(0.0, _shake - delta * 50.0)
+	_grip = _grip.lerp(_grip_target(), 1.0 - exp(-delta * 18.0))
 	for i in range(_texts.size() - 1, -1, -1):
 		var tx: Dictionary = _texts[i]
 		tx.t += delta
@@ -563,13 +584,17 @@ func _draw_boss() -> void:
 	# shadow
 	c.draw_set_transform(_o + pos + Vector2(0, 4), 0.0, Vector2(1.0, 0.22))
 	c.draw_circle(Vector2.ZERO, 95.0 * scl.x, Color(Palette.INK, 0.25))
-	c.draw_set_transform(_o + pos, _boss_lean, scl)
+	var xf := Transform2D(_boss_lean, scl, 0.0, _o + pos)
+	c.draw_set_transform_matrix(xf)
 	var tex: Texture2D = _tex.get(_boss_pose())
 	if tex:
-		var h := 300.0
-		var w := tex.get_size().x * h / tex.get_size().y
+		var w := tex.get_size().x * BOSS_H / tex.get_size().y
 		var mod := Color(2.0, 2.0, 2.0) if _boss_flash > 0.5 else Color.WHITE
-		c.draw_texture_rect(tex, Rect2(-w * 0.5, -h, w, h), false, mod)
+		c.draw_texture_rect(tex, Rect2(-w * 0.5, -BOSS_H, w, BOSS_H), false, mod)
+		if _tex.weapon:
+			_draw_weapon_art(xf, tex, w, mod)
+		else:
+			_draw_weapon()
 	else:
 		_draw_boss_body()
 	for w in _wounds:
@@ -579,6 +604,36 @@ func _draw_boss() -> void:
 			var a := _t * 5.0 + i * TAU / 4.0
 			c.draw_circle(Vector2(cos(a) * 44.0, -268.0 + sin(a) * 9.0), 4.0, Palette.GOLD)
 	c.draw_set_transform(_o)
+
+
+## The weapon's pivot for the current pose: the right fist, or between the fists in a wind-up.
+func _grip_target() -> Vector2:
+	var pose := _boss_pose()
+	var hands: Array = HANDS.get(boss, HANDS.warlord)[pose]
+	return (hands[0] + hands[1]) * 0.5 if pose == "windup" else hands[1]
+
+
+## The separate weapon art on the animated weapon transform, then the fists drawn back over the haft.
+func _draw_weapon_art(xf: Transform2D, body: Texture2D, body_w: float, mod: Color) -> void:
+	var c := _ctl
+	var tex: Texture2D = _tex.weapon
+	var art: Dictionary = WEAPON_ART[_data.weapon]
+	var k: float = art.len / tex.get_size().y
+	var close := maxf(0.0, -_reach) ## swinging out at the camera: bigger, and in front of the fists
+	var s := 1.0 + close * 0.9
+	c.draw_set_transform_matrix(xf * Transform2D(_weapon + PI * 0.5, Vector2(_blade * s, _reach), 0.0, _grip))
+	c.draw_texture_rect(tex, Rect2(-art.grip * tex.get_size() * k, tex.get_size() * k), false, mod)
+	c.draw_set_transform_matrix(xf)
+	if close > 0.0:
+		return
+	for hand in HANDS.get(boss, HANDS.warlord)[_boss_pose()]:
+		var pts := PackedVector2Array()
+		var uvs := PackedVector2Array()
+		for i in 14:
+			var q: Vector2 = hand + Vector2.from_angle(TAU * i / 14.0) * 16.0
+			pts.append(q)
+			uvs.append(Vector2(q.x / body_w + 0.5, q.y / BOSS_H + 1.0))
+		c.draw_colored_polygon(pts, mod, uvs, body)
 
 
 func _tint(col: Color) -> Color:
@@ -728,6 +783,7 @@ func _draw_champion() -> void:
 		var t: Texture2D = _tex.arm
 		var h := 420.0
 		var w := t.get_size().x * h / t.get_size().y
+		_sleeve(t, Rect2(-w * 0.5, -h, w, h), true, 0.98)
 		c.draw_texture_rect(t, Rect2(-w * 0.5, -h, w, h), false)
 	else:
 		c.draw_colored_polygon(PackedVector2Array([Vector2(-30, 20), Vector2(30, 20), Vector2(22, -150), Vector2(-22, -150)]), Palette.INK)
@@ -746,14 +802,17 @@ func _draw_champion() -> void:
 			c.draw_rect(Rect2(-22 + i * 11, -196, 10, 12), Palette.INK)
 			c.draw_rect(Rect2(-20 + i * 11, -194, 6, 8), STEEL)
 	# shield, bottom left (raised to cover the face on BLOCK)
-	var spos := Vector2(62, 590).lerp(Vector2(180, 430), _shield) + sway * Vector2(1.0, 1.0 - _shield)
+	# the shield art is the back of the shield with the gauntlet on its strap, arm off the bottom left
+	var spos := (Vector2(40, 610).lerp(Vector2(128, 452), _shield) if _tex.shield
+		else Vector2(62, 590).lerp(Vector2(180, 430), _shield)) + sway * Vector2(1.0, 1.0 - _shield)
 	var srot := lerpf(0.22, 0.0, _shield)
 	var sscl := Vector2.ONE * lerpf(1.0, 1.55, _shield)
 	c.draw_set_transform(_o + spos, srot, sscl)
 	if _tex.shield:
 		var t: Texture2D = _tex.shield
-		var h := 180.0
+		var h := 340.0
 		var w := t.get_size().x * h / t.get_size().y
+		_sleeve(t, Rect2(-w * 0.5, -h * 0.5, w, h), false, 0.004)
 		c.draw_texture_rect(t, Rect2(-w * 0.5, -h * 0.5, w, h), false)
 	else:
 		var outline := PackedVector2Array([Vector2(-66, -78), Vector2(66, -78), Vector2(66, 8), Vector2(40, 60), Vector2(0, 92),
@@ -774,6 +833,23 @@ func _draw_champion() -> void:
 		c.draw_rect(Rect2(-6, -6, 12, 14), Palette.BLUE)
 		c.draw_line(Vector2(-60, -60), Vector2(-30, -74), Color(1, 1, 1, 0.3), 3.0)
 	c.draw_set_transform(_o)
+
+
+## Streaks one row (down) or column (left) of the art past its edge, drawn behind it, so the
+## Champion's sleeve still runs off the page when the arm swings up or tilts. `k`: where that row or
+## column is, as a fraction of the texture (the sleeves taper just before the image edge).
+func _sleeve(t: Texture2D, r: Rect2, down: bool, k: float) -> void:
+	var pts: PackedVector2Array
+	var uvs: PackedVector2Array
+	if down:
+		var y := r.position.y + r.size.y * k
+		pts = [Vector2(r.position.x, y), Vector2(r.end.x, y), Vector2(r.end.x, y + 300), Vector2(r.position.x, y + 300)]
+		uvs = [Vector2(0, k), Vector2(1, k), Vector2(1, k), Vector2(0, k)]
+	else:
+		var x := r.position.x + r.size.x * k
+		pts = [Vector2(x, r.position.y), Vector2(x, r.end.y), Vector2(x - 300, r.end.y), Vector2(x - 300, r.position.y)]
+		uvs = [Vector2(k, 0), Vector2(k, 1), Vector2(k, 1), Vector2(k, 0)]
+	_ctl.draw_colored_polygon(pts, Color.WHITE, uvs, t)
 
 
 ## The finisher fold: the lifted part of the page shows the table; its back lands mirrored.

@@ -1,6 +1,6 @@
 class_name Waves
-## A 12-wave run (~15 min): new enemy kinds ramp in over waves 3-5, the Iron Warlord leads
-## wave 6 (mid-boss), waves 7-11 mix everything, and the Siege Ram closes the run at wave 12.
+## An 8-wave demo: new enemy kinds ramp in over waves 3-5, the Iron Warlord leads
+## wave 6 (mid-boss), and the Siege Ram closes the run at wave 8.
 ## Starting ink buys a barracks plus a wall; each clear grants 3 ink and a Royal Decree.
 
 const LIST := [
@@ -11,16 +11,12 @@ const LIST := [
 	{"grunt": 7, "runner": 3, "brute": 1, "flyer": 1, "imp": 2, "interval": 1.5},
 	{"grunt": 5, "runner": 2, "brute": 1, "warlord": 1, "interval": 1.6, "boss": true},
 	{"grunt": 8, "runner": 4, "brute": 2, "pinner": 1, "flyer": 2, "interval": 1.4},
-	{"grunt": 8, "runner": 4, "brute": 2, "flyer": 2, "imp": 2, "interval": 1.35},
-	{"grunt": 9, "runner": 5, "brute": 2, "pinner": 2, "flyer": 1, "imp": 1, "interval": 1.3},
-	{"grunt": 10, "runner": 5, "brute": 3, "flyer": 3, "imp": 2, "interval": 1.25},
-	{"grunt": 10, "runner": 6, "brute": 3, "pinner": 1, "flyer": 3, "imp": 2, "interval": 1.2},
 	{"grunt": 6, "runner": 3, "brute": 2, "flyer": 2, "imp": 1, "ram": 1, "interval": 1.4, "boss": true},
 ]
 
 const START_INK := 8
 const WAVE_BONUS_INK := 3
-const COSTS := {"tower": 4, "wall": 3, "barracks": 5}
+const COSTS := {"tower": 4, "wall": 3, "barracks": 5, "archer_tower": 6}
 const SQUAD_SIZE := 2 ## knights per barracks
 const KNIGHT_RESPAWN := 6.0 ## seconds, during waves
 const REWARDS := {"grunt": 1, "runner": 1, "brute": 3, "ram": 10, "pinner": 3, "flyer": 2, "imp": 2, "warlord": 8}

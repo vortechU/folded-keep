@@ -25,7 +25,7 @@ hits whatever lies underneath. Your castle layout *is* your arsenal.
      - blank paper → **SLAPPED** (stunned 1.5 s, knocked back)
    - A unit **on the flap** whose mirrored point lands on the map is **flipped**: it's moved to
      the mirrored position and stunned for 1 s. You can throw enemies around, but careful, you can
-     also throw them toward your Keep.
+     also throw them toward your Keep. **Crow Riders are the exception:** a flip knocks them out.
    - **Friendly fire:** your own units follow exactly the same rules.
    - Buildings are never damaged by folds. They are the hammer.
    - **While dragging:** time slows to 45%, the flap turns translucent so you can aim through it,
@@ -43,7 +43,7 @@ hits whatever lies underneath. Your castle layout *is* your arsenal.
    Reaching the Keep damages it. Keep HP 0 = defeat.
 7. **Build phase** between waves: spend **Ink** (earned from kills) to stamp buildings on
    non-road paper.
-8. **Waves:** 12 waves (mid-boss at 6, final boss at 12, see "12-wave run"). Survive all of them = victory. Endless mode is a stretch goal.
+8. **Waves:** 8 waves for the demo (mid-boss at 6, final boss at 8, see "8-wave demo"). Survive all of them = victory. Endless mode is a stretch goal.
 
 ### HUD layout rules (the map is the whole screen, so UI must not block folding)
 - The map's **edges are the controls**. During a wave, no UI may block input within 28 px of any
@@ -52,11 +52,33 @@ hits whatever lies underneath. Your castle layout *is* your arsenal.
 - Top bar: at most 22 px tall, input-transparent. The build bar exists only in the build phase.
 - Banners must be input-transparent and must not dim the map during waves.
 
+### Map inspection
+During a wave, the interior **LOOK** button enters a 2× view of the map. Drag with one mouse
+button or finger to pan, then tap **BACK** to restore the full map. Folding is disabled while
+inspecting, and the view resets before a boss duel or when a wave ends. The button stays away
+from the 28 px folding edges.
+
+### Learning & battle report (task #46)
+- The first-wave lesson points out a live enemy and a tower, and animates an edge drag that
+  mirrors the tower onto that enemy. During a drag it asks for a red X; a valid tower crush
+  shows "Release to crush!". A missed fold does not finish the lesson. It clears after the first
+  tower crush or when wave 1 ends, hides during LOOK, and remembers successful completion on restart.
+- **Field guide** is available from the main menu and pause screen. Three illustrated pages
+  explain folding, defenses/duels, and enemy counters. Drag with one pointer to scroll; the close
+  control remains visible. Reading it preserves the menu/pause state.
+- Victory and defeat show a **Royal Battle Report**: invaders defeated, enemies killed by crush
+  outcomes, largest fold by enemy kills, duels won/attempted, folds made, and Keep health. Friendly
+  casualties and nonlethal boss hits do not inflate the counters. Fold totals count wave slams only.
+  A royal commendation recognizes an intact Keep, a five-kill fold, two duel wins, or the run's outcome.
+- Main supplies lesson geometry and the final report through `Events.fold_lesson_changed`,
+  `tower_crush_landed`, `map_inspection_changed`, and `battle_report_ready`; UI never reads fold nodes.
+
 ### Buildings (blue ink, player)
 | Building | Heavy? | Role |
 |---|---|---|
 | Keep | yes | Your castle. Fold the bottom edge up for a **Keep Slam** (huge area). Costs 1 Keep HP during a wave, never drops you below 1. |
-| Tower | yes | The basic hammer. Cheap. |
+| Tower | yes | The basic hammer. A tower crush also drops 1 allied knight at the impact (once per tower per slam). Up to 2 dropped guards per tower can be active; they fade after 18 s. |
+| Archer Tower | no | Costs 6 ink. A light watchtower that automatically shoots Crow Riders within 90 px every 1.6 s; two arrows bring one down. It cannot crush with a fold. Painted sprite: `assets/sprites/buildings/archer_tower.png`. |
 | Wall | yes | Heavy *and* blocks the road. Enemies stop to bash it. |
 | Barracks | no | 5 ink. Keeps 2 blue knights on the nearest road (respawn 6 s in waves). Knights pin enemies in melee, which sets up folds, but your folds hurt them too. |
 
@@ -67,7 +89,7 @@ hits whatever lies underneath. Your castle layout *is* your arsenal.
 | Runner | Fast, fragile. Dies from a slap too. |
 | Brute | Slow. Slaps do nothing; only a crush kills. |
 | Mid-boss: Iron Warlord (`warlord`) | Wave 6. Needs 2 crushes, ignores slaps, hacks walls (4/hit), knights can't kill him, deals 4 Keep damage, 8 ink. |
-| Boss: Siege Ram | Wave 12 (final). Needs 3 crushes, ignores slaps, breaks walls in one hit, deals 5 Keep damage. Flipping it throws it back up the road. |
+| Boss: Siege Ram | Wave 8 (final). Needs 3 crushes, ignores slaps, breaks walls in one hit, deals 5 Keep damage. Flipping it throws it back up the road. |
 
 ### Royal Decrees (done)
 After each cleared wave the King offers 3 of 12 decrees (`scripts/game/decrees.gd`), pick 1, it lasts
@@ -82,7 +104,7 @@ A unit on the flap whose mirrored spot falls **off the map** is **flung off the 
 | Enemy | Kind id | Behavior |
 |---|---|---|
 | Pin-Bearer | `pinner` | Leaves the road, walks to the nearest map **corner** and hammers in a giant nail. While he lives, folds can't be grabbed within ~140 px of that corner (grab is refused with a red shake/flash on the pin). Doesn't attack the Keep. 2 slaps or a crush kill him. Reward 3. From wave 3. |
-| Crow Rider | `flyer` | Flies in a straight line from the top toward the Keep, ignoring roads, walls and knights. **Can't be crushed or slapped** (the flap passes under it); only **flipped** (sent back) or **flung** off the map. From wave 4. |
+| Crow Rider | `flyer` | Flies in a straight line from the top toward the Keep at base speed 22 (up from 19), ignoring roads, walls and knights. **Can't be crushed or slapped** (the flap passes under it); **one flip kills it**, an off-map fling works, and two Archer Tower arrows shoot it down. From wave 4. |
 | Ink Imp | `imp` | Runs off-road to a random spot and gnaws the paper (visible progress ring, ~4 s). If it finishes, the map **tears** there (same holes as wear & tear). Killing it cancels. From wave 5. |
 Each first appearance emits `Events.enemy_introduced(kind)` (Helper #21 shows the card).
 Sprites: `assets/sprites/units/enemy_pinner.png`, `enemy_flyer.png`, `enemy_imp.png` (placeholder draw until they land).
@@ -92,9 +114,9 @@ re-hammer it; a flipped imp restarts gnawing. The imp prefers spots next to your
 via `FoldController.tear_at(p)`, then dives into its hole (`Unit.escaped`, no ink). Flyers ignore holes
 and knights. SFX names: `pin`, `pin_block`. Test: `scenes/tests/enemies_test.tscn`.
 
-### 12-wave run (done, task #22c)
-12 waves (~15 min). Mid-boss at **wave 6** (Iron Warlord, triggers a Duel), final boss at **wave 12**
-(Siege Ram + its driver, Duel first). Decree after every wave. New enemies ramp in (runner 3,
+### 8-wave demo (task #22c, shortened in task #41)
+8 waves. Mid-boss at **wave 6** (Iron Warlord, triggers a Duel), final boss at **wave 8**
+(Siege Ram + its driver, Duel first). Decree after each cleared wave before the finale. New enemies ramp in (runner 3,
 brute 4, pinner 3, flyer 4, imp 5...). As built: `Waves.LIST`, bosses + their banners in `Waves.BOSSES`
 (the boss enters 5th in its wave's queue). Test: `scenes/tests/run_test.tscn` fast-forwards a whole run.
 
@@ -126,6 +148,28 @@ sit at the bottom of the screen. Painted-page look, background `duel_bg.png`.
   below 1). `Duel.resolve(won)` ends a duel instantly (tests). SFX names: `duel_windup`, `duel_swing`,
   `duel_clang`, `duel_whoosh`, `duel_dodge`, `duel_hit`, `duel_hurt`, `duel_stagger`.
   Test: `scenes/tests/duel_test.tscn` (real mouse swipes/taps/fold, one win and one loss).
+  Weapon art `duel_<boss>_<axe|maul>.png` (head up) pivots around the fists listed in `Duel.HANDS`
+  (per boss and pose, measured on the 300 px body); grip point + length in `Duel.WEAPON_ART`.
+
+### Weather (done, task #37)
+Rolled when each wave starts (`Weather.roll`), shown on the wave banner, fades out when the wave ends.
+Wave 2 always rains (so everyone sees weather); from wave 4, 60% chance of rain / fog / storm, never
+the same twice in a row, storms only on waves with Crow Riders.
+- **Rain:** ink-hatched streaks, splashes, wet spots soaking into the paper. Cosmetic.
+- **Storm:** heavier rain, darker page, lightning (bolt + scorch mark + screen flash + shake) every
+  5-10 s, and **wind gusts** every 3.5-6.5 s (2.8 s, up to 34 px/s sideways) that blow **Crow Riders**
+  off course toward the map edges, where folds reach them. `Weather.gust` is read by `Unit._flyer_step`.
+- **Fog:** fog banks, thick along the top edge where enemies enter, thin at the Keep.
+Debug: `?weather=storm` / `-- --weather=storm` forces it for every wave. Test: `scenes/tests/weather_test.tscn`.
+Audio names: SFX `thunder`, `wind_gust`; looping beds `assets/audio/ambience/rain.ogg`, `storm.ogg`
+(`Audio.set_ambience`).
+Task #48 adds 12-second downmixed rain/storm recordings from the local library (Fesliyan Studios
+source metadata) and a 4.8-second CDanSantana Open Plains thunder cue. Rain loops use a one-second
+overlap crossfade; thunder has a short attack and faded tail. Provenance and conversion are in
+`builds/weather_audio/`. Wind gusts retain the synthesized fallback.
+When recordings are absent, `scripts/autoload/weather_audio.gd` synthesizes quiet mono rain/storm
+loops and thunder/wind cues once, then Audio caches them. Normal asset-path recordings take priority.
+Headless runs load/validate streams but skip playback on the silent Dummy audio server.
 
 ## Tech
 - **Godot 4.7.2**, **GL Compatibility** renderer (required for web), web export **without threads**
@@ -142,7 +186,7 @@ sit at the bottom of the screen. Painted-page look, background `duel_bg.png`.
 Main (Node2D)                      scenes/main.tscn, scripts/main.gd
 ├─ MapViewport (SubViewport 360×640)   ← everything "printed on the paper" lives here
 │  └─ World (Node2D)
-│     ├─ Paper      (parchment, roads, terrain decals)
+│     ├─ Paper      (parchment, roads, terrain decals; all baked once into one texture)
 │     ├─ Buildings  (group "building")
 │     └─ Units      (groups "unit" + "enemy"/"ally")
 ├─ MapDisplay (Sprite2D)          ← shows MapViewport texture through shaders/fold.gdshader

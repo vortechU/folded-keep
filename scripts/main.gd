@@ -4,17 +4,22 @@ extends Node2D
 
 const UnitScript := preload("res://scripts/units/unit.gd")
 const BuildingScript := preload("res://scripts/buildings/building.gd")
+const ArcherTowerScript := preload("res://scripts/buildings/archer_tower.gd")
 const DuelScene := preload("res://scenes/duel/duel.tscn")
 const CloudsShader := preload("res://shaders/clouds.gdshader")
+const UiStyle := preload("res://scripts/ui/ui_style.gd")
 ## Ink for beating the Iron Warlord in his duel.
 const DUEL_REWARD := 12
 ## Keep damage when the Champion loses a duel (never drops the Keep below 1).
 const DUEL_LOSS_DAMAGE := 2
+const TOWER_GUARD_LIMIT := 2 ## active guards a tower can drop onto the battlefield
+const TOWER_GUARD_LIFETIME := 18.0 ## seconds before a dropped guard fades away
 
 enum Phase { BUILD, WAVE, OVER }
 ## The map is rendered at this multiple of its 360x640 logical size, so painted art stays sharp.
 ## Gameplay coordinates are unaffected.
 const RENDER_SCALE := 2
+const LOOK_ZOOM := 2.0
 
 @onready var map_viewport: SubViewport = $MapViewport
 @onready var paper: Paper = $MapViewport/World/Paper
@@ -31,6 +36,13 @@ var wave := 0 # waves completed / index of next wave
 var keep_hp := Waves.KEEP_MAX_HP
 var ink := Waves.START_INK
 var kills := 0
+var enemies_crushed := 0
+var biggest_fold := 0
+var folds_made := 0
+var duels_won := 0
+var duels_fought := 0
+var _tower_lesson_done := false
+var _lesson_timer := 0.0
 
 var _queue: Array[String] = []
 var _spawn_timer := 0.0
@@ -40,6 +52,14 @@ var _autotest := false
 var _introduced := {} ## enemy kinds seen this run
 var _dueling := false
 var _debug := false ## wave-skip key on (see _read_debug_args)
+var weather: Weather
+var _flash: ColorRect ## lightning lights up the whole screen
+var _looking := false
+var _look_dragging := false
+var _look_pan := Vector2.ZERO ## top-left map point visible while inspecting
+var _look_button: Button
+var _look_hint: Label
+var _archer_button: Button
 
 
 func _ready() -> void:
@@ -57,10 +77,14 @@ func _ready() -> void:
 	build.paper = paper
 	build.place_requested.connect(_on_place_requested)
 	build.disarmed.connect(func(): fold.enabled = true)
+	_add_look_control()
+	_add_archer_button()
+	build.disarmed.connect(_refresh_archer_button)
 	Events.build_requested.connect(_on_build_requested)
 	Events.start_wave_requested.connect(_start_wave)
 	Events.restart_requested.connect(func(): get_tree().reload_current_scene())
 	Events.decree_chosen.connect(_on_decree_chosen)
+	Events.duel_finished.connect(_record_duel)
 	Decrees.reset()
 	_add_atmosphere()
 
@@ -99,6 +123,8 @@ func _read_debug_args() -> void:
 			var start := clampi(arg.trim_prefix("--wave=").to_int(), 1, Waves.LIST.size()) - 1
 			wave = start
 			ink += Waves.WAVE_BONUS_INK * start
+		elif arg.begins_with("--weather="):
+			weather.forced = arg.trim_prefix("--weather=")
 
 
 ## Debug: crush every enemy on the map and drop the rest of the wave, so it ends normally.
@@ -129,16 +155,35 @@ func _add_atmosphere() -> void:
 	world.add_child(clouds)
 	# sheep and chimney smoke under the buildings; birds above everything
 	var ambient := Ambient.new()
+	ambient.paper = paper
 	world.add_child(ambient)
 	world.move_child(ambient, buildings.get_index())
 	fold.slammed.connect(ambient.on_slam)
 	world.add_child(Birds.new())
+	# weather over everything; its wet spots and scorch marks soak into the paper under the wind curls
+	weather = Weather.new()
+	world.add_child(weather)
+	world.add_child(weather.ground)
+	world.move_child(weather.ground, wind.get_index())
+	var layer := CanvasLayer.new()
+	layer.layer = 2
+	add_child(layer)
+	_flash = ColorRect.new()
+	_flash.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_flash.color = Color(1.0, 0.98, 0.88, 0.0)
+	layer.add_child(_flash)
+	weather.lightning.connect(_on_lightning)
 
 
 # --- phases ---------------------------------------------------------------------------
 
 func _enter_build() -> void:
+	_set_looking(false)
+	_look_button.hide()
 	phase = Phase.BUILD
+	_archer_button.show()
+	_refresh_archer_button()
 	if Decrees.has("masons_guild"):
 		for b in get_tree().get_nodes_in_group("building"):
 			if b.kind == "wall":
@@ -155,16 +200,19 @@ func _start_wave() -> void:
 		return
 	build.disarm()
 	phase = Phase.WAVE
+	_archer_button.hide()
+	_look_button.show()
 	_queue = Waves.queue_for(wave)
 	_spawn_timer = 0.5
 	Events.wave_changed.emit(wave + 1, Waves.LIST.size())
 	Events.phase_changed.emit("wave")
+	var sky := weather.roll(wave, Waves.LIST[wave].has("flyer"))
 	if wave == Waves.LIST.size() - 1:
-		Events.banner.emit("FINAL WAVE")
+		Events.banner.emit("FINAL WAVE" + ("\n" + sky if sky else ""))
 	elif Waves.LIST[wave].get("boss", false):
 		Events.banner.emit("WAVE %d\nA CHAMPION APPROACHES" % (wave + 1))
 	else:
-		Events.banner.emit("WAVE %d" % (wave + 1))
+		Events.banner.emit("WAVE %d" % (wave + 1) + ("\n" + sky if sky else ""))
 
 
 func _check_wave_end() -> void:
@@ -172,6 +220,9 @@ func _check_wave_end() -> void:
 		return
 	if get_tree().get_nodes_in_group("enemy").any(func(u): return u.is_alive()):
 		return
+	_set_looking(false)
+	_look_button.hide()
+	_archer_button.hide()
 	wave += 1
 	if wave >= Waves.LIST.size():
 		_game_over(true)
@@ -212,8 +263,18 @@ func keep_max_hp() -> int:
 
 
 func _game_over(won: bool) -> void:
+	_set_looking(false)
+	_look_button.hide()
+	_archer_button.hide()
 	phase = Phase.OVER
 	build.disarm()
+	Events.battle_report_ready.emit({
+		"won": won, "kills": kills, "crushed": enemies_crushed,
+		"biggest_fold": biggest_fold, "folds": folds_made,
+		"duels_won": duels_won, "duels_fought": duels_fought,
+		"keep_hp": keep_hp, "keep_max_hp": keep_max_hp(),
+		"waves_cleared": wave, "total_waves": Waves.LIST.size(),
+	})
 	Events.phase_changed.emit("victory" if won else "defeat")
 	Events.banner.emit(("VICTORY!" if won else "THE KEEP HAS FALLEN") + "\ntap to play again")
 
@@ -222,12 +283,18 @@ func _game_over(won: bool) -> void:
 
 func _on_build_requested(kind: String) -> void:
 	if phase != Phase.BUILD or ink < Waves.COSTS[kind]:
+		Audio.play_sfx("ui_cancel")
 		return
 	if build.armed == kind:
+		Audio.play_sfx("ui_cancel")
 		build.disarm()
 		return
+	Audio.play_sfx("ui_click")
 	fold.enabled = false
 	build.arm(kind)
+	_refresh_archer_button()
+	if kind == "archer_tower":
+		Events.banner.emit("ARCHER TOWER\nTwo arrows ground a Crow Rider")
 
 
 func _on_place_requested(kind: String, pos: Vector2, rot: float) -> void:
@@ -245,13 +312,13 @@ func _on_place_requested(kind: String, pos: Vector2, rot: float) -> void:
 
 
 func _add_building(kind: String, pos: Vector2, size: Vector2) -> Building:
-	var b: Building = BuildingScript.new()
+	var b: Building = ArcherTowerScript.new() if kind == "archer_tower" else BuildingScript.new()
 	b.kind = kind
 	b.size = size
 	b.position = pos
 	if kind == "wall":
 		b.max_hp = 12 if Decrees.has("masons_guild") else 6
-	elif kind == "barracks":
+	elif kind == "barracks" or kind == "archer_tower":
 		b.heavy = false
 	buildings.add_child(b)
 	return b
@@ -288,6 +355,8 @@ func _spawn_enemy(kind: String) -> Unit:
 ## Win: the Warlord is defeated outright / the Ram enters with one crush left.
 ## Lose: the boss enters at full strength and the Keep takes DUEL_LOSS_DAMAGE.
 func _duel(kind: String) -> void:
+	_set_looking(false)
+	_look_button.hide()
 	_dueling = true
 	var duel: Duel = DuelScene.instantiate()
 	duel.boss = "driver" if kind == "ram" else kind
@@ -298,6 +367,7 @@ func _duel(kind: String) -> void:
 	_dueling = false
 	if phase == Phase.OVER:
 		return
+	_look_button.show()
 	if kind == "warlord" and won:
 		kills += 1
 		_set_ink(ink + DUEL_REWARD)
@@ -344,19 +414,69 @@ func _fill_squads() -> void:
 
 
 func _spawn_knight(b: Building) -> Unit:
+	# Guard the nearest road, a few steps apart from squadmates.
+	var road := paper.closest_road(b.position)
+	return _spawn_knight_at(b.position + Vector2(0, b.size.y * 0.5 + 2),
+		road.point + road.dir * (b.squad.size() * 14.0 - 7.0))
+
+
+func _spawn_knight_at(start: Vector2, guard_post: Vector2) -> Unit:
 	var k: Unit = UnitScript.new()
 	k.team = Unit.Team.ALLY
 	k.setup("knight")
-	k.position = b.position + Vector2(0, b.size.y * 0.5 + 2)
-	# Guard the nearest road, a few steps apart from squadmates.
-	var road := paper.closest_road(b.position)
-	k.post = road.point + road.dir * (b.squad.size() * 14.0 - 7.0)
+	k.position = start
+	k.post = guard_post
 	k.died.connect(_on_unit_died)
 	units.add_child(k)
 	var fx := Fx.of(self)
 	if fx:
 		fx.dust_ring(k.position, 6.0, 5)
 	return k
+
+
+## Tower crews tumble onto the map when their tower lands a crushing blow. Only one crewman
+## drops per tower per slam, and the short lifetime keeps towers distinct from barracks.
+func _drop_tower_guards(outcomes: Array) -> void:
+	var used_towers := {}
+	for outcome in outcomes:
+		if outcome.outcome != FoldController.Outcome.CRUSH:
+			continue
+		var victim: Unit = outcome.unit
+		if victim.team != Unit.Team.ENEMY:
+			continue
+		for building in get_tree().get_nodes_in_group("building"):
+			var tower := building as Building
+			if tower == null or tower.kind != "tower" or used_towers.has(tower.get_instance_id()):
+				continue
+			if not tower.contains_point(outcome.target, victim.hit_radius()):
+				continue
+			used_towers[tower.get_instance_id()] = true
+			_drop_tower_guard(tower, outcome.pos)
+			break
+
+
+func _drop_tower_guard(tower: Building, impact: Vector2) -> void:
+	tower.squad = tower.squad.filter(func(k): return is_instance_valid(k) and k.is_alive())
+	if tower.squad.size() >= TOWER_GUARD_LIMIT:
+		return
+	var side := -7.0 if tower.squad.is_empty() else 7.0
+	var landing := (impact + Vector2(side, 2)).clamp(Vector2(8, 8), Paper.SIZE - Vector2(8, 8))
+	var guard := _spawn_knight_at(landing + Vector2(0, -24), paper.closest_road(landing).point)
+	guard.stun = 0.4
+	guard.scale = Vector2(0.8, 1.25)
+	tower.squad.append(guard)
+	var drop := guard.create_tween().set_parallel()
+	drop.tween_property(guard, "position", landing, 0.28).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
+	drop.tween_property(guard, "scale", Vector2.ONE, 0.28)
+	drop.chain().tween_callback(func() -> void:
+		var fx := Fx.of(guard)
+		if fx:
+			fx.dust_ring(landing, 9.0, 8)
+			fx.text(landing + Vector2(0, -20), "GUARD DROPPED!", Palette.BLUE_LIGHT))
+	var fade := guard.create_tween()
+	fade.tween_interval(TOWER_GUARD_LIFETIME)
+	fade.tween_property(guard, "modulate:a", 0.0, 0.4)
+	fade.tween_callback(guard.queue_free)
 
 
 func _on_unit_died(u: Unit) -> void:
@@ -390,11 +510,74 @@ func _is_keep_slam(m: Vector2, n: Vector2) -> bool:
 func _set_ink(v: int) -> void:
 	ink = v
 	Events.ink_changed.emit(ink)
+	_refresh_archer_button()
 
 
 # --- frame ----------------------------------------------------------------------------
 
+func _record_duel(won: bool) -> void:
+	duels_fought += 1
+	if won:
+		duels_won += 1
+
+
+## A live first-wave example uses the existing fold math without changing controls.
+## Main reads gameplay objects; the tutorial receives map coordinates through Events.
+func _update_fold_lesson(delta: float) -> void:
+	if _tower_lesson_done or wave != 0 or phase != Phase.WAVE:
+		return
+	_lesson_timer -= delta
+	if _lesson_timer > 0.0:
+		return
+	_lesson_timer = 0.1
+	var dragging := fold.state == FoldController.State.DRAGGING
+	var best_tower: Building
+	var best_enemy: Unit
+	var best_distance := INF
+	for node in get_tree().get_nodes_in_group("building"):
+		var tower := node as Building
+		if tower.kind != "tower":
+			continue
+		for enemy_node in get_tree().get_nodes_in_group("enemy"):
+			var enemy := enemy_node as Unit
+			if not enemy.is_alive() or not Rect2(Vector2(30, 80), Vector2(300, 430)).has_point(enemy.position):
+				continue
+			var distance := tower.position.distance_squared_to(enemy.position)
+			if distance < best_distance:
+				best_distance = distance
+				best_tower = tower
+				best_enemy = enemy
+	if best_enemy == null:
+		Events.fold_lesson_changed.emit({"has_target": false, "dragging": dragging, "ready": false})
+		return
+	var midpoint := (best_tower.position + best_enemy.position) * 0.5
+	var normal := (best_tower.position - best_enemy.position).normalized()
+	var reach := INF
+	if absf(normal.x) > 0.001:
+		reach = minf(reach, ((356.0 if normal.x > 0.0 else 4.0) - midpoint.x) / normal.x)
+	if absf(normal.y) > 0.001:
+		reach = minf(reach, ((636.0 if normal.y > 0.0 else 4.0) - midpoint.y) / normal.y)
+	var grab := midpoint + normal * reach
+	var pointer := midpoint - normal * reach
+	var ready := false
+	if dragging and fold.grab.distance_to(fold.pointer) >= 24.0:
+		for outcome in fold.compute_outcomes(FoldMath.line_point(fold.grab, fold.pointer), FoldMath.normal(fold.grab, fold.pointer)):
+			var enemy := outcome.unit as Unit
+			if outcome.outcome != FoldController.Outcome.CRUSH or enemy.team != Unit.Team.ENEMY:
+				continue
+			for node in get_tree().get_nodes_in_group("building"):
+				var tower := node as Building
+				if tower.kind == "tower" and tower.contains_point(outcome.target, enemy.hit_radius()):
+					ready = true
+	Events.fold_lesson_changed.emit({
+		"has_target": Rect2(Vector2.ZERO, Paper.SIZE).has_point(pointer),
+		"tower": best_tower.position, "enemy": best_enemy.position,
+		"grab": grab, "pointer": pointer, "dragging": dragging, "ready": ready,
+	})
+
+
 func _process(delta: float) -> void:
+	_update_fold_lesson(delta)
 	if phase == Phase.WAVE and not _queue.is_empty() and not _autotest and not _dueling:
 		_spawn_timer -= delta
 		# a boss waits for the player to finish the fold in hand, then calls a duel
@@ -407,23 +590,39 @@ func _process(delta: float) -> void:
 				_spawn_enemy(kind)
 	if phase == Phase.WAVE:
 		_update_barracks(delta)
-	if _shake > 0.0:
-		_shake = maxf(0.0, _shake - delta * 40.0)
-		board.position = _origin + (Vector2(randf_range(-1, 1), randf_range(-1, 1)) * _shake).round()
+	_shake = maxf(0.0, _shake - delta * 40.0)
+	var shake_offset := (Vector2(randf_range(-1, 1), randf_range(-1, 1)) * _shake).round()
+	board.position = _origin - _look_pan * board.scale.x + shake_offset
+
+
+func _on_lightning(_pos: Vector2) -> void:
+	_shake = maxf(_shake, 3.0)
+	var tw := create_tween()
+	tw.tween_property(_flash, "color:a", 0.45, 0.04)
+	tw.tween_property(_flash, "color:a", 0.1, 0.07)
+	tw.tween_property(_flash, "color:a", 0.3, 0.04)
+	tw.tween_property(_flash, "color:a", 0.0, 0.35)
 
 
 ## Center the 360x640 map (and the HUD drawn over it) in whatever screen we got.
 func _layout() -> void:
 	var vis := get_viewport().get_visible_rect().size
 	_origin = ((vis - Paper.SIZE) * 0.5).floor()
-	board.position = _origin
+	board.position = _origin - _look_pan * board.scale.x
 	hud.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	hud.position = _origin
 	hud.size = Paper.SIZE
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventKey and event.pressed and event.keycode == KEY_R:
+	if _looking and event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		_look_dragging = event.pressed
+		get_viewport().set_input_as_handled()
+	elif _looking and event is InputEventMouseMotion and _look_dragging:
+		_look_pan = (_look_pan - event.relative / LOOK_ZOOM).clamp(
+			Vector2.ZERO, Paper.SIZE - Paper.SIZE / LOOK_ZOOM)
+		get_viewport().set_input_as_handled()
+	elif event is InputEventKey and event.pressed and event.keycode == KEY_R:
 		get_tree().reload_current_scene()
 	elif _debug and event is InputEventKey and event.pressed and event.keycode == KEY_N:
 		_debug_clear_wave()
@@ -431,9 +630,94 @@ func _unhandled_input(event: InputEvent) -> void:
 		Events.restart_requested.emit()
 
 
+## Inspection is a separate one-pointer mode, so map drags cannot accidentally fold.
+func _add_look_control() -> void:
+	_look_button = Button.new()
+	_look_button.position = Vector2(143, 32)
+	_look_button.size = Vector2(74, 36)
+	_look_button.text = "LOOK"
+	_look_button.tooltip_text = "Zoom in and drag to inspect the map"
+	UiStyle.button(_look_button)
+	_look_button.pressed.connect(func() -> void: _set_looking(not _looking))
+	hud.add_child(_look_button)
+	hud.move_child(_look_button, 0) # menus and decree cards stay above it
+	_look_button.hide()
+	_look_hint = UiStyle.label("Drag to look around", Rect2(80, 76, 200, 28), 13, UiStyle.PAPER)
+	_look_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_look_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hud.add_child(_look_hint)
+	hud.move_child(_look_hint, 1)
+	_look_hint.hide()
+
+
+## Third stamp in the left column, under Barracks; the centre stays clear over the keep.
+func _add_archer_button() -> void:
+	_archer_button = Button.new()
+	_archer_button.position = Vector2(8, 602)
+	_archer_button.size = Vector2(128, 34)
+	_archer_button.text = "Archer   6"
+	_archer_button.tooltip_text = "6 ink. Shoots Crow Riders within range; two arrows bring one down."
+	_archer_button.icon = load("res://assets/sprites/buildings/archer_tower.png") as Texture2D
+	_archer_button.expand_icon = true
+	_archer_button.add_theme_constant_override("icon_max_width", 25)
+	_archer_button.add_theme_constant_override("h_separation", 4)
+	UiStyle.button(_archer_button)
+	_archer_button.pressed.connect(func() -> void: Events.build_requested.emit("archer_tower"))
+	hud.add_child(_archer_button)
+	hud.move_child(_archer_button, 0) # menus and decree cards remain on top
+	_archer_button.hide()
+
+
+func _refresh_archer_button() -> void:
+	if _archer_button == null:
+		return
+	var selected := build.armed == "archer_tower"
+	_archer_button.disabled = ink < Waves.COSTS.archer_tower or (build.armed != "" and not selected)
+	_archer_button.add_theme_stylebox_override("normal", UiStyle.box(
+		UiStyle.BLUE if selected else UiStyle.LIGHT, UiStyle.INK))
+	_archer_button.add_theme_color_override("font_color", UiStyle.LIGHT if selected else UiStyle.INK)
+
+
+func _set_looking(active: bool) -> void:
+	if active and (phase != Phase.WAVE or _dueling or fold.state != FoldController.State.IDLE):
+		return
+	_looking = active
+	_look_dragging = false
+	_look_pan = (Paper.SIZE - Paper.SIZE / LOOK_ZOOM) * 0.5 if active else Vector2.ZERO
+	board.scale = Vector2.ONE * (LOOK_ZOOM if active else 1.0)
+	board.position = _origin - _look_pan * board.scale.x
+	fold.enabled = not active
+	_look_button.text = "BACK" if active else "LOOK"
+	_look_hint.visible = active
+	Events.map_inspection_changed.emit(active)
+
+
 func _on_slammed(m: Vector2, n: Vector2, outcomes: Array) -> void:
 	var crushes := outcomes.filter(func(e): return e.outcome == FoldController.Outcome.CRUSH).size()
+	var fold_kills := 0
+	var tower_crush := false
+	for outcome in outcomes:
+		var victim := outcome.unit as Unit
+		if not is_instance_valid(victim) or victim.team != Unit.Team.ENEMY:
+			continue
+		if not victim.is_alive():
+			fold_kills += 1
+		if outcome.outcome != FoldController.Outcome.CRUSH:
+			continue
+		if not victim.is_alive() and phase == Phase.WAVE:
+			enemies_crushed += 1
+		for node in get_tree().get_nodes_in_group("building"):
+			var tower := node as Building
+			if tower.kind == "tower" and tower.contains_point(outcome.target, victim.hit_radius()):
+				tower_crush = true
+	if phase == Phase.WAVE:
+		folds_made += 1
+		biggest_fold = maxi(biggest_fold, fold_kills)
+		if tower_crush and not _tower_lesson_done:
+			_tower_lesson_done = true
+			Events.tower_crush_landed.emit()
 	Events.slammed.emit(crushes)
+	_drop_tower_guards(outcomes)
 	_shake = 4.0 + crushes * 1.5
 	if _is_keep_slam(m, n):
 		_shake += 6.0
