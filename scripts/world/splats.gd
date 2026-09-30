@@ -1,31 +1,46 @@
 extends Node2D
-## Permanent ink splats left on the map by crushed units. The map remembers every battle.
+## Blood/ink marks spread, linger, then fade; storage stays bounded during busy battles.
 
 const BLEED_TIME := 0.5 ## seconds for a fresh splat to spread into the paper
+const FADE_START := 12.0 ## seconds before ink starts fading
+const FADE_TIME := 4.0
+const MAX_BLOBS := 512 ## includes the central blot and its small droplets
 
-var _blobs: Array = [] ## [pos, radius, color, born]
-var _patches: Array = [] ## stitched-up tears: [pos, radius]
+var _blobs: Array[Array] = [] ## [pos, radius, color, born]
+var _patches: Array[Array] = [] ## stitched-up tears: [pos, radius]
 var _time := 0.0
-var _last_born := -10.0
 
 
 func _ready() -> void:
 	add_to_group("splats")
+	set_process(not _blobs.is_empty())
 
 
 func _process(delta: float) -> void:
 	_time += delta
-	if _time - _last_born < BLEED_TIME + 0.05:
+	var changed := false
+	for i in range(_blobs.size() - 1, -1, -1):
+		var age: float = _time - _blobs[i][3]
+		if age >= FADE_START + FADE_TIME:
+			_blobs.remove_at(i)
+			changed = true
+		elif age < BLEED_TIME + 0.05 or age >= FADE_START:
+			changed = true
+	if changed:
 		queue_redraw()
+	if _blobs.is_empty():
+		set_process(false)
 
 
 func add_splat(pos: Vector2, color: Color) -> void:
-	_last_born = _time
 	_blobs.append([pos, 6.0, color, _time])
 	for i in randi_range(5, 9):
 		var off := Vector2.from_angle(randf() * TAU) * randf_range(3.0, 11.0)
 		# droplets further out land a moment later
 		_blobs.append([pos + off, randf_range(1.0, 3.5), color, _time + off.length() * 0.01])
+	while _blobs.size() > MAX_BLOBS:
+		_blobs.pop_front()
+	set_process(true)
 	queue_redraw()
 
 
@@ -52,11 +67,15 @@ func _draw() -> void:
 	for b in _blobs:
 		var r: float = b[1] * _grown(b[3])
 		if r > 0.1:
-			draw_circle(b[0], r * 1.35, Color(b[2], 0.18))
+			draw_circle(b[0], r * 1.35, Color(b[2], 0.18 * _opacity(b[3])))
 	for b in _blobs:
 		var r: float = b[1] * _grown(b[3])
 		if r > 0.1:
-			draw_circle(b[0], r, Color(b[2], 0.85))
+			draw_circle(b[0], r, Color(b[2], 0.85 * _opacity(b[3])))
+
+
+func _opacity(born: float) -> float:
+	return 1.0 - clampf((_time - born - FADE_START) / FADE_TIME, 0.0, 1.0)
 
 
 func _grown(born: float) -> float:

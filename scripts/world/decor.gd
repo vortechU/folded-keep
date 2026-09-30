@@ -20,7 +20,14 @@ const MOAT_R := Vector2(62, 30)
 const MOAT_W := 4.5
 ## A little hamlet by the left tower; ambient.gd puffs smoke from its chimneys.
 const HOUSES := [Vector2(50, 322), Vector2(67, 312), Vector2(82, 327)]
+## Illustrated cottages (tools/draw_hamlet.py), one per house, and where each chimney tops out.
+const COTTAGES := [preload("res://assets/sprites/terrain/cottage_a.png"),
+	preload("res://assets/sprites/terrain/cottage_b.png"), preload("res://assets/sprites/terrain/cottage_c.png")]
+const CHIMNEY_TOPS := [Vector2(-1.7, -14.6), Vector2(-1.4, -14.6), Vector2(-2.0, -14.6)]
+const COTTAGE_RECT := Rect2(-9, -18, 20, 21)
 const WINDMILL := Vector2(101, 303) ## foot of the mill; its sails turn in ambient.gd
+const WINDMILL_TEX := preload("res://assets/sprites/terrain/windmill.png")
+const WINDMILL_RECT := Rect2(-11, -24, 26, 28)
 const RUINS := Vector2(158, 198)
 const SIGNPOST := Vector2(162, 524)
 const FONT_PATH := "res://scripts/ui/fonts/im_fell_english.ttf"
@@ -61,14 +68,14 @@ func _draw() -> void:
 ## Chimney tops of the hamlet's houses (where the smoke comes out).
 static func chimneys() -> Array[Vector2]:
 	var out: Array[Vector2] = []
-	for h: Vector2 in HOUSES:
-		out.append(h + Vector2(2.5, -10.5))
+	for i in HOUSES.size():
+		out.append(HOUSES[i] + CHIMNEY_TOPS[i])
 	return out
 
 
 ## Where the windmill's sails are pinned.
 static func windmill_hub() -> Vector2:
-	return WINDMILL + Vector2(0, -16)
+	return WINDMILL + Vector2(0, -17.6)
 
 
 # --- washes -----------------------------------------------------------------------------
@@ -399,36 +406,34 @@ func _draw_forest(c: Vector2, radius: float) -> void:
 # --- buildings & landmarks --------------------------------------------------------------
 
 func _draw_hamlet() -> void:
-	var houses: Array = HOUSES.duplicate()
-	houses.sort_custom(func(a, b): return a.y < b.y)
-	for h: Vector2 in houses:
-		draw_rect(Rect2(h + Vector2(-4, -1), Vector2(10, 6)), Color(Palette.INK, 0.15))
-		# chimney, walls, roof, door
-		draw_rect(Rect2(h + Vector2(1.5, -10.5), Vector2(2, 5)), Palette.SEPIA)
-		draw_rect(Rect2(h + Vector2(-5, -4), Vector2(10, 7)), Palette.PARCHMENT_MID)
-		draw_rect(Rect2(h + Vector2(-5, -4), Vector2(10, 7)), Palette.SEPIA, false, 0.7)
-		var roof := PackedVector2Array([h + Vector2(-6.5, -4), h + Vector2(0, -9.5), h + Vector2(6.5, -4)])
-		draw_colored_polygon(roof, Color(Palette.RED, 0.7))
-		draw_polyline(roof + PackedVector2Array([roof[0]]), Palette.SEPIA, 0.7)
-		draw_rect(Rect2(h + Vector2(-1, -0.5), Vector2(2, 3.5)), Palette.SEPIA)
+	# a worn lane from the cottages past the mill to the road
+	var lane := PackedVector2Array([Vector2(40, 330), Vector2(56, 327), Vector2(72, 321), Vector2(88, 315),
+		Vector2(101, 309), Vector2(117, 303), Vector2(134, 300)])
+	draw_polyline(lane, Color("#d3b988"), 3.2, true)
+	draw_polyline(lane, Color(UMBER, 0.18), 1.2, true)
+	# a fenced vegetable plot behind the first cottage
+	var plot := Rect2(26, 306, 14, 11)
+	draw_rect(plot, Color(MEADOW, 0.35))
+	for k in 5:
+		var y := plot.position.y + 1.6 + k * 2.1
+		draw_line(Vector2(plot.position.x + 1, y), Vector2(plot.end.x - 1, y), Color(UMBER, 0.45), 0.6, true)
+		for x in [29.0, 33.5, 37.5]:
+			draw_circle(Vector2(x + (k % 2) * 1.2, y - 0.6), 0.7, Color(MEADOW.darkened(0.25), 0.9))
+	draw_rect(plot, Color(Palette.SEPIA, 0.85), false, 0.5)
+	for i in 8:
+		var t := i / 7.0
+		for post in [Vector2(lerpf(plot.position.x, plot.end.x, t), plot.position.y),
+				Vector2(lerpf(plot.position.x, plot.end.x, t), plot.end.y)]:
+			draw_line(post, post + Vector2(0, -1.4), Palette.SEPIA, 0.5)
+	var order: Array = range(HOUSES.size())
+	order.sort_custom(func(a, b): return HOUSES[a].y < HOUSES[b].y)
+	for i: int in order:
+		draw_texture_rect(COTTAGES[i], Rect2(HOUSES[i] + COTTAGE_RECT.position, COTTAGE_RECT.size), false)
 
 
-## A post mill on a little mound (the sails are drawn turning by ambient.gd).
+## A stone tower mill on a grassy mound (the sails are drawn turning by ambient.gd).
 func _draw_windmill(p: Vector2) -> void:
-	draw_arc(p + Vector2(0, 6), 11.0, PI + 0.5, TAU - 0.5, 12, Color(Palette.SEPIA, 0.6), 0.7)
-	draw_set_transform(p + Vector2(1.5, 2), 0.0, Vector2(1.0, 0.4))
-	draw_circle(Vector2.ZERO, 6.0, Color(Palette.INK, 0.15))
-	draw_set_transform(Vector2.ZERO)
-	var body := PackedVector2Array([p + Vector2(-5, 1), p + Vector2(-3.2, -15), p + Vector2(3.2, -15), p + Vector2(5, 1)])
-	draw_colored_polygon(body, Palette.PARCHMENT_MID)
-	draw_colored_polygon(PackedVector2Array([p + Vector2(1, 1), p + Vector2(1, -15), p + Vector2(3.2, -15), p + Vector2(5, 1)]),
-		Color(Palette.SEPIA, 0.25))
-	draw_polyline(body + PackedVector2Array([body[0]]), Palette.SEPIA, 0.7)
-	var cap := PackedVector2Array([p + Vector2(-4.2, -15), p + Vector2(0, -19.5), p + Vector2(4.2, -15)])
-	draw_colored_polygon(cap, Color(Palette.RED, 0.7))
-	draw_polyline(cap + PackedVector2Array([cap[0]]), Palette.SEPIA, 0.7)
-	draw_rect(Rect2(p + Vector2(-1.2, -3.5), Vector2(2.4, 4.5)), Palette.SEPIA)
-	draw_rect(Rect2(p + Vector2(-1, -10), Vector2(2, 2)), Palette.SEPIA)
+	draw_texture_rect(WINDMILL_TEX, Rect2(p + WINDMILL_RECT.position, WINDMILL_RECT.size), false)
 
 
 ## A ruined round tower and a broken wall, stones scattered in the grass.

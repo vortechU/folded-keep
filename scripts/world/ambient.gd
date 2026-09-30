@@ -10,6 +10,7 @@ const InkShader := preload("res://shaders/ink.gdshader")
 const RIPPLES := 18
 const FLOW := 9.0 ## ripple drift downstream, px/s
 const SAIL_SPIN := 1.1 ## rad/s
+const SAILS := preload("res://assets/sprites/terrain/windmill_sails.png")
 const SERPENT := Vector2(19, 407)
 const SERPENT_SKIN := Color("#6f8a64")
 const FLOCKS := [Vector3(182, 238, 18), Vector3(96, 428, 16)] ## (x, y, pasture radius)
@@ -213,17 +214,9 @@ func _draw_water() -> void:
 
 ## The mill's four lattice sails, turning.
 func _draw_sails(hub: Vector2) -> void:
-	var spin := _time * SAIL_SPIN
-	for k in 4:
-		var d := Vector2.from_angle(spin + k * PI * 0.5)
-		var n := d.orthogonal()
-		var sail := PackedVector2Array([hub + d * 3.0, hub + d * 11.0, hub + d * 11.0 + n * 3.0, hub + d * 3.0 + n * 3.0])
-		draw_colored_polygon(sail, Color(Palette.PARCHMENT, 0.9))
-		draw_line(hub + d * 7.0, hub + d * 7.0 + n * 3.0, Color(Palette.SEPIA, 0.6), 0.4)
-		draw_line(hub + d * 3.0 + n * 1.5, hub + d * 11.0 + n * 1.5, Color(Palette.SEPIA, 0.6), 0.4)
-		draw_polyline(sail + PackedVector2Array([sail[0]]), Color(Palette.SEPIA, 0.9), 0.5)
-		draw_line(hub, hub + d * 11.5, Palette.SEPIA, 0.8)
-	draw_circle(hub, 1.1, Palette.INK)
+	draw_set_transform(hub, _time * SAIL_SPIN)
+	draw_texture_rect(SAILS, Rect2(-14, -14, 28, 28), false)
+	draw_set_transform(Vector2.ZERO)
 
 
 ## The serpent of the mere: two coils and a craning neck breaking the water, bobbing.

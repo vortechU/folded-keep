@@ -55,6 +55,9 @@ func _ready() -> void:
 	Style.button(fight, true)
 	fight.add_theme_font_override("font", Style.TITLE_FONT)
 	fight.add_theme_font_size_override("font_size", 21)
+	for state in ["normal", "hover", "pressed"]:
+		fight.get_theme_stylebox(state).content_margin_top += 18
+	Style.glyph(fight, "swords")
 	fight.pressed.connect(func() -> void: Events.start_wave_requested.emit())
 	add_child(fight)
 	_buttons["fight"] = fight
@@ -85,24 +88,27 @@ func _apply_accessibility() -> void:
 	Accessibility.apply_to(self)
 
 func _draw() -> void:
-	draw_rect(Rect2(0, 0, 360, 22), Style.INK)
+	Style.grain(self, Rect2(0, 0, 360, 22), Style.INK.lightened(0.08))
 	draw_line(Vector2(0, 21), Vector2(360, 21), Style.GOLD)
+	draw_line(Vector2(0, 22.5), Vector2(360, 22.5), Color(Style.INK, 0.35))
 	draw_line(Vector2(120, 5), Vector2(120, 16), Style.SEPIA)
 	draw_line(Vector2(226, 5), Vector2(226, 16), Style.SEPIA)
 	if _phase == "build":
-		Style.box(Style.PAPER, Style.GOLD).draw(get_canvas_item(), Rect2(32, 474, 296, 46))
+		Style.plate(Style.PAPER, Style.SEPIA, Style.GOLD, 0.0).draw(get_canvas_item(), Rect2(32, 474, 296, 46))
 
 func _build_button(caption: String, kind: String, pos: Vector2) -> Button:
 	var button := Button.new()
 	button.position = pos
 	button.size = Vector2(126 if pos.x > 180 else 128, 34)
 	Style.button(button)
-	button.text = "%s   %d" % [caption, _costs[kind]]
+	button.text = caption
+	button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	button.add_theme_constant_override("h_separation", 7)
+	Style.cost_badge(button, int(_costs[kind]))
 	button.tooltip_text = "%s ink. %s" % [_costs[kind], HELP[kind]]
 	button.icon = load("res://assets/sprites/buildings/%s.png" % kind) as Texture2D
 	button.expand_icon = true
 	button.add_theme_constant_override("icon_max_width", 25)
-	button.add_theme_constant_override("h_separation", 4)
 	button.pressed.connect(_request_build.bind(kind))
 	add_child(button)
 	return button
@@ -130,9 +136,7 @@ func _refresh() -> void:
 		var button: Button = _buttons[kind]
 		button.visible = _phase == "build"
 		button.disabled = _ink < int(_costs[kind])
-		var selected: bool = _selected_kind == kind
-		button.add_theme_stylebox_override("normal", Style.box(Style.BLUE if selected else Style.LIGHT, Style.INK))
-		button.add_theme_color_override("font_color", Style.LIGHT if selected else Style.INK)
+		Style.select(button, _selected_kind == kind)
 	_buttons["fight"].visible = _phase == "build"
 	queue_redraw()
 
@@ -141,7 +145,7 @@ func _make_banner() -> void:
 	_banner_panel.position = Vector2(44, 191)
 	_banner_panel.size = Vector2(272, 54)
 	_banner_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_banner_panel.add_theme_stylebox_override("panel", Style.box(Style.PAPER, Style.SEPIA))
+	_banner_panel.add_theme_stylebox_override("panel", Style.plate(Style.PAPER, Style.SEPIA, Style.GOLD, 2.0))
 	add_child(_banner_panel)
 	_banner_label = Style.label("", Rect2(), 21, Style.INK, true)
 	_banner_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

@@ -6,10 +6,12 @@ const Accessibility := preload("res://scripts/ui/accessibility_settings.gd")
 const KEEP_ART := preload("res://assets/sprites/buildings/keep.png")
 const GuideScript := preload("res://scripts/ui/field_guide.gd")
 const ReportScript := preload("res://scripts/ui/battle_report.gd")
+const IntroScript := preload("res://scripts/ui/comic_intro.gd")
 
 ## Survives reload_current_scene() (the script instance is new, but the class stays
 ## loaded), so a restart can skip straight back into play instead of re-showing the menu.
 static var _skip_menu_on_ready := false
+static var _intro_seen := false
 
 var _screen := "menu"
 var _decree_open := false
@@ -31,12 +33,17 @@ var _help_button: Button
 var _guide: Control
 var _report: Control
 var _report_data: Dictionary = {}
+var _story_button: Button
+var _intro: Control
+var _intro_starts_run := false
 
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	set_anchors_preset(Control.PRESET_FULL_RECT)
-	_pause_button = _button("PAUSE", Vector2(272, 32), Vector2(56, 40), 11)
+	_pause_button = _button("", Vector2(290, 30), Vector2(38, 38), 11)
+	_pause_button.tooltip_text = "Pause"
+	Style.glyph(_pause_button, "pause")
 	_pause_button.pressed.connect(_pause_game)
 	_title = _label(Vector2(42, 195), Vector2(276, 103), 42)
 	_title.add_theme_constant_override("line_spacing", -8)
@@ -62,12 +69,17 @@ func _ready() -> void:
 	_help_button.pressed.connect(func() -> void:
 		Audio.play_sfx("ui_click")
 		_guide.open())
+	_story_button = _button("The story", Vector2(184, 506), Vector2(124, 40), 14)
+	_story_button.pressed.connect(func() -> void: _open_intro(false))
 	_report = ReportScript.new()
 	_report.position = Vector2(52, 250)
 	_report.size = Vector2(256, 238)
 	add_child(_report)
 	_guide = GuideScript.new()
 	add_child(_guide)
+	_intro = IntroScript.new()
+	add_child(_intro)
+	_intro.finished.connect(_on_intro_finished)
 	Events.battle_report_ready.connect(func(report: Dictionary) -> void:
 		_report_data = report
 		_report.show_report(report))
@@ -146,7 +158,9 @@ func _set_screen(screen: String) -> void:
 	_body.visible = screen == "menu"
 	_report.visible = screen == "victory" or screen == "defeat"
 	_help_button.visible = screen == "menu" or screen == "pause"
+	_story_button.visible = screen == "menu"
 	_guide.hide()
+	_intro.hide()
 	_primary.visible = showing_panel
 	_secondary.visible = screen == "pause"
 	for control in [_settings_header, _large_text_button, _contrast_button, _sound_button]:
@@ -158,6 +172,7 @@ func _set_screen(screen: String) -> void:
 	_secondary.position = Vector2(52, 530) if screen == "pause" else Vector2(88, 508)
 	_secondary.size = Vector2(256, 40) if screen == "pause" else Vector2(184, 40)
 	_help_button.position = Vector2(52, 422) if screen == "pause" else Vector2(52, 506)
+	_help_button.size = Vector2(124, 40) if screen == "menu" else Vector2(256, 40)
 	if _report.visible:
 		_title.position = Vector2(42, 146)
 		_title.size = Vector2(276, 62)
@@ -237,12 +252,31 @@ func _pause_game() -> void:
 
 
 func _on_primary_pressed() -> void:
+	if _screen == "menu" and not _intro_seen:
+		_open_intro(true)
+		return
 	if _screen == "menu" or _screen == "pause":
 		Audio.play_sfx("ui_click")
 		_set_screen("")
 		get_tree().paused = false
 	else:
 		_restart_game()
+
+
+func _open_intro(start_run: bool) -> void:
+	Audio.play_sfx("ui_click")
+	_intro_starts_run = start_run
+	get_tree().paused = true
+	_intro.open(not start_run)
+
+
+func _on_intro_finished() -> void:
+	_intro_seen = true
+	if _intro_starts_run:
+		_set_screen("")
+		get_tree().paused = false
+	else:
+		_set_screen("menu")
 
 
 func _restart_game() -> void:

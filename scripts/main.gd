@@ -9,7 +9,8 @@ const DuelScene := preload("res://scenes/duel/duel.tscn")
 const CloudsShader := preload("res://shaders/clouds.gdshader")
 const UiStyle := preload("res://scripts/ui/ui_style.gd")
 ## Ink for beating the Iron Warlord in his duel.
-const DUEL_REWARD := 12
+const DUEL_REWARD := 8
+const MapCameraScript := preload("res://scripts/game/map_camera.gd")
 ## Keep damage when the Champion loses a duel (never drops the Keep below 1).
 const DUEL_LOSS_DAMAGE := 2
 const TOWER_GUARD_LIMIT := 2 ## active guards a tower can drop onto the battlefield
@@ -47,6 +48,7 @@ var _lesson_timer := 0.0
 var _queue: Array[String] = []
 var _spawn_timer := 0.0
 var _shake := 0.0
+var _map_camera := MapCameraScript.new()
 var _origin := Vector2.ZERO ## where the map sits on screen (centered; the table fills the rest)
 var _autotest := false
 var _introduced := {} ## enemy kinds seen this run
@@ -592,7 +594,16 @@ func _process(delta: float) -> void:
 		_update_barracks(delta)
 	_shake = maxf(0.0, _shake - delta * 40.0)
 	var shake_offset := (Vector2(randf_range(-1, 1), randf_range(-1, 1)) * _shake).round()
-	board.position = _origin - _look_pan * board.scale.x + shake_offset
+	var aiming := fold.state == FoldController.State.DRAGGING
+	_map_camera.advance(delta / maxf(Engine.time_scale, 0.001),
+		phase == Phase.WAVE and not _looking and not _dueling, aiming)
+	if not aiming:
+		_apply_map_camera(shake_offset)
+
+
+func _apply_map_camera(shake: Vector2 = Vector2.ZERO) -> void:
+	_map_camera.apply(board, _origin, get_viewport().get_visible_rect().size,
+		_looking, _look_pan, LOOK_ZOOM, shake)
 
 
 func _on_lightning(_pos: Vector2) -> void:
@@ -608,7 +619,7 @@ func _on_lightning(_pos: Vector2) -> void:
 func _layout() -> void:
 	var vis := get_viewport().get_visible_rect().size
 	_origin = ((vis - Paper.SIZE) * 0.5).floor()
-	board.position = _origin - _look_pan * board.scale.x
+	_apply_map_camera()
 	hud.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	hud.position = _origin
 	hud.size = Paper.SIZE
@@ -633,17 +644,18 @@ func _unhandled_input(event: InputEvent) -> void:
 ## Inspection is a separate one-pointer mode, so map drags cannot accidentally fold.
 func _add_look_control() -> void:
 	_look_button = Button.new()
-	_look_button.position = Vector2(143, 32)
-	_look_button.size = Vector2(74, 36)
-	_look_button.text = "LOOK"
+	_look_button.position = Vector2(32, 30)
+	_look_button.size = Vector2(38, 38)
 	_look_button.tooltip_text = "Zoom in and drag to inspect the map"
 	UiStyle.button(_look_button)
+	UiStyle.glyph(_look_button, "look")
 	_look_button.pressed.connect(func() -> void: _set_looking(not _looking))
 	hud.add_child(_look_button)
 	hud.move_child(_look_button, 0) # menus and decree cards stay above it
 	_look_button.hide()
 	_look_hint = UiStyle.label("Drag to look around", Rect2(80, 76, 200, 28), 13, UiStyle.PAPER)
 	_look_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_look_hint.add_theme_stylebox_override("normal", UiStyle.plate(UiStyle.INK.lightened(0.12), UiStyle.INK, UiStyle.GOLD, 0.0))
 	_look_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hud.add_child(_look_hint)
 	hud.move_child(_look_hint, 1)
@@ -655,13 +667,15 @@ func _add_archer_button() -> void:
 	_archer_button = Button.new()
 	_archer_button.position = Vector2(8, 602)
 	_archer_button.size = Vector2(128, 34)
-	_archer_button.text = "Archer   6"
+	_archer_button.text = "Archer"
+	_archer_button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	_archer_button.tooltip_text = "6 ink. Shoots Crow Riders within range; two arrows bring one down."
 	_archer_button.icon = load("res://assets/sprites/buildings/archer_tower.png") as Texture2D
 	_archer_button.expand_icon = true
 	_archer_button.add_theme_constant_override("icon_max_width", 25)
-	_archer_button.add_theme_constant_override("h_separation", 4)
+	_archer_button.add_theme_constant_override("h_separation", 7)
 	UiStyle.button(_archer_button)
+	UiStyle.cost_badge(_archer_button, Waves.COSTS.archer_tower)
 	_archer_button.pressed.connect(func() -> void: Events.build_requested.emit("archer_tower"))
 	hud.add_child(_archer_button)
 	hud.move_child(_archer_button, 0) # menus and decree cards remain on top
@@ -673,9 +687,7 @@ func _refresh_archer_button() -> void:
 		return
 	var selected := build.armed == "archer_tower"
 	_archer_button.disabled = ink < Waves.COSTS.archer_tower or (build.armed != "" and not selected)
-	_archer_button.add_theme_stylebox_override("normal", UiStyle.box(
-		UiStyle.BLUE if selected else UiStyle.LIGHT, UiStyle.INK))
-	_archer_button.add_theme_color_override("font_color", UiStyle.LIGHT if selected else UiStyle.INK)
+	UiStyle.select(_archer_button, selected)
 
 
 func _set_looking(active: bool) -> void:
@@ -684,10 +696,11 @@ func _set_looking(active: bool) -> void:
 	_looking = active
 	_look_dragging = false
 	_look_pan = (Paper.SIZE - Paper.SIZE / LOOK_ZOOM) * 0.5 if active else Vector2.ZERO
-	board.scale = Vector2.ONE * (LOOK_ZOOM if active else 1.0)
-	board.position = _origin - _look_pan * board.scale.x
+	_map_camera.reset()
+	_apply_map_camera()
 	fold.enabled = not active
-	_look_button.text = "BACK" if active else "LOOK"
+	UiStyle.glyph(_look_button, "close" if active else "look")
+	UiStyle.select(_look_button, active)
 	_look_hint.visible = active
 	Events.map_inspection_changed.emit(active)
 
@@ -719,8 +732,10 @@ func _on_slammed(m: Vector2, n: Vector2, outcomes: Array) -> void:
 	Events.slammed.emit(crushes)
 	_drop_tower_guards(outcomes)
 	_shake = 4.0 + crushes * 1.5
+	_map_camera.kick(n, 0.65 + minf(crushes, 4) * 0.16)
 	if _is_keep_slam(m, n):
 		_shake += 6.0
+		_map_camera.kick(n, 0.5)
 		Events.keep_slammed.emit()
 		Events.banner.emit("KEEP SLAM!")
 		if keep_hp > 1 and phase == Phase.WAVE and not Decrees.has("thick_parchment"):

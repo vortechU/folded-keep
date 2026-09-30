@@ -18,10 +18,10 @@ const FEET := Vector2(180, 470) ## where the boss stands on the page
 const CHEST := Vector2(0, -140) ## boss chest, relative to its feet (the finisher must cover it)
 const ART_DIR := "res://assets/sprites/duel/"
 const BOSSES := {
-	"warlord": {"name": "THE IRON WARLORD", "stagger": 100.0, "tell": 1.15, "tell_min": 0.7, "fakes": 0.0,
+	"warlord": {"name": "THE IRON WARLORD", "stagger": 150.0, "tell": 1.15, "tell_min": 0.7, "fakes": 0.0,
 		"armor": Color("#62646e"), "cloth": Color("#A8322D"), "weapon": "axe",
 		"win": "The Warlord falls!", "lose": "The Warlord marches on your Keep!"},
-	"driver": {"name": "THE RAM'S DRIVER", "stagger": 120.0, "tell": 1.0, "tell_min": 0.6, "fakes": 0.4,
+	"driver": {"name": "THE RAM'S DRIVER", "stagger": 180.0, "tell": 1.0, "tell_min": 0.6, "fakes": 0.4,
 		"armor": Color("#7a5a3a"), "cloth": Color("#6E4B2A"), "weapon": "maul",
 		"win": "The Ram rolls in wounded: one crush left!", "lose": "The Ram rolls in at full strength!"},
 }

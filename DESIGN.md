@@ -1,7 +1,7 @@
 # Folded Keep — Design & Tech Spec
 
 > **Source of truth.** Every agent (human or AI) reads this before touching the project.
-> If you change a rule, change it here too. Status: **v0.1 — fold prototype in progress.**
+> If you change a rule, change it here too. Status: **Final jam release — uploaded to itch.io on 2026-09-30 (confirmed by the Human).**
 
 ## Pitch
 You defend your castle by **folding the map it's drawn on.** Drag any edge of the parchment
@@ -32,7 +32,8 @@ hits whatever lies underneath. Your castle layout *is* your arsenal.
      and markers preview every outcome (red ✕ = crush, gold ring = slap, blue dashed arrow = flip).
      The flap's back shows its ink faintly, mirrored, so you can see where the towers will land.
    - Impact juice: hit-stop (70 ms + extra per crush) and screen shake. Crushed units leave
-     **permanent ink splats**, so the map remembers every battle.
+     **ink splats** that linger for 12 s, then fade over 4 s. Blood/ink is capped at 512 blobs
+     (including droplets), replacing the oldest marks during heavy combat; stitched tear patches remain.
 4. The map **unfolds automatically** 0.35 s after the slam.
 5. **Creases & tears:** each slam leaves a visible crease line. Where a new crease crosses two
    old creases close together (three folds meeting), the map **rips open** into a hole (a red
@@ -52,11 +53,30 @@ hits whatever lies underneath. Your castle layout *is* your arsenal.
 - Top bar: at most 22 px tall, input-transparent. The build bar exists only in the build phase.
 - Banners must be input-transparent and must not dim the map during waves.
 
+### Comic introduction (task #54)
+Before the first run, three painted two-panel comic pages explain how an enchanted
+map became the Keep's weapon. Reading pauses gameplay. Tap the page or **Turn the
+page** to continue; **Back** revisits a page and **Skip** begins play. **Read closer**
+enlarges the artwork to 1.65× for single-pointer panning; Larger text starts zoomed.
+The menu's **The story** replays it and returns to the menu. Completing or closing
+the story marks it seen for the app session. Restarts and pause resumes enter play
+directly. Navigation uses the existing IM Fell parchment plate controls. Generated
+pages live in `assets/sprites/ui/intro/`; the exact prompts are embedded in the PNGs
+and retained in `builds/comic_intro/`.
+
 ### Map inspection
 During a wave, the interior **LOOK** button enters a 2× view of the map. Drag with one mouse
 button or finger to pan, then tap **BACK** to restore the full map. Folding is disabled while
 inspecting, and the view resets before a boss duel or when a wave ends. The button stays away
 from the 28 px folding edges.
+
+### Map camera juice (task #55)
+During waves the map gently sways and tilts around its center, with damped directional recoil
+on fold impacts (stronger for multiple crushes and Keep Slams). The whole Board shares the
+transform so paper, fold previews, particles and pointer coordinates remain aligned; HUD stays
+fixed. Motion freezes during a held fold, pauses with the game, and resets for building, LOOK,
+boss duels and wave endings. A small adaptive inset keeps idle-motion map corners visible on
+portrait screens. Tuning lives in `scripts/game/map_camera.gd`; fold code/shader are unchanged.
 
 ### Learning & battle report (task #46)
 - The first-wave lesson points out a live enemy and a tower, and animates an edge drag that
@@ -88,7 +108,7 @@ from the 28 px folding edges.
 | Grunt | Walks the road. 1 slap stuns, any crush kills. |
 | Runner | Fast, fragile. Dies from a slap too. |
 | Brute | Slow. Slaps do nothing; only a crush kills. |
-| Mid-boss: Iron Warlord (`warlord`) | Wave 6. Needs 2 crushes, ignores slaps, hacks walls (4/hit), knights can't kill him, deals 4 Keep damage, 8 ink. |
+| Mid-boss: Iron Warlord (`warlord`) | Wave 6. Needs 2 crushes, ignores slaps, hacks walls (4/hit), knights can't kill him, deals 4 Keep damage, 5 ink. |
 | Boss: Siege Ram | Wave 8 (final). Needs 3 crushes, ignores slaps, breaks walls in one hit, deals 5 Keep damage. Flipping it throws it back up the road. |
 
 ### Royal Decrees (done)
@@ -103,7 +123,7 @@ A unit on the flap whose mirrored spot falls **off the map** is **flung off the 
 ### Fold-aware enemies (done, task #22b) — enemies that fight the MAP
 | Enemy | Kind id | Behavior |
 |---|---|---|
-| Pin-Bearer | `pinner` | Leaves the road, walks to the nearest map **corner** and hammers in a giant nail. While he lives, folds can't be grabbed within ~140 px of that corner (grab is refused with a red shake/flash on the pin). Doesn't attack the Keep. 2 slaps or a crush kill him. Reward 3. From wave 3. |
+| Pin-Bearer | `pinner` | Leaves the road, walks to the nearest map **corner** and hammers in a giant nail. While he lives, folds can't be grabbed within ~140 px of that corner (grab is refused with a red shake/flash on the pin). Doesn't attack the Keep. 2 slaps or a crush kill him. Reward 2. From wave 3. |
 | Crow Rider | `flyer` | Flies in a straight line from the top toward the Keep at base speed 22 (up from 19), ignoring roads, walls and knights. **Can't be crushed or slapped** (the flap passes under it); **one flip kills it**, an off-map fling works, and two Archer Tower arrows shoot it down. From wave 4. |
 | Ink Imp | `imp` | Runs off-road to a random spot and gnaws the paper (visible progress ring, ~4 s). If it finishes, the map **tears** there (same holes as wear & tear). Killing it cancels. From wave 5. |
 Each first appearance emits `Events.enemy_introduced(kind)` (Helper #21 shows the card).
@@ -119,6 +139,14 @@ and knights. SFX names: `pin`, `pin_block`. Test: `scenes/tests/enemies_test.tsc
 (Siege Ram + its driver, Duel first). Decree after each cleared wave before the finale. New enemies ramp in (runner 3,
 brute 4, pinner 3, flyer 4, imp 5...). As built: `Waves.LIST`, bosses + their banners in `Waves.BOSSES`
 (the boss enters 5th in its wave's queue). Test: `scenes/tests/run_test.tscn` fast-forwards a whole run.
+Task #52 tightens spawn spacing from wave 2 onward (about 10–17%) and replaces some later
+grunts with runners, brutes, and Crow Riders. Wave 1, each wave's total enemy count, starting
+ink, build costs, Keep health, enemy counters, and boss placement stay the same.
+
+Task #53 reduces earned ink: each cleared wave grants 1 ink; grunts, runners, Crow Riders,
+and Ink Imps pay 1, brutes and Pin-Bearers pay 2, the Warlord pays 5, and the Siege Ram pays 6.
+A Warlord duel victory pays 8 instead of his map-kill reward. Starting ink remains 8 and build
+costs stay unchanged; Royal Treasury still grants its stated +1 per enemy defeated.
 
 ### Duel of Champions (done, task #23) — first-person boss duel
 When a boss arrives the map freezes and a full-screen **first-person** duel starts (portrait):
@@ -142,12 +170,15 @@ sit at the bottom of the screen. Painted-page look, background `duel_bg.png`.
   `main.gd` when a boss spawns; `Events.duel_started(boss)` / `Events.duel_finished(won)`.
 - **As built:** `main.gd` `_duel(kind)` runs when a boss is popped from the spawn queue (waits for
   any fold in hand to finish), pauses the tree and awaits `Duel.finished`. Tuning in `Duel.BOSSES`
-  (stagger 100/120, tell time, fake-out chance 0/40% from round 3) and the constants at the top of
+  (stagger 150/180 for Warlord/Driver, tell time, fake-out chance 0/40% from round 3) and the constants at the top of
   `duel.gd` (3 Champion hearts, 1.6 s strike window, 5 per tap, 8 for a correct read). The first 2
-  rounds show the answer arrow. Warlord win = +12 ink (`main.DUEL_REWARD`); loss = Keep −2 (never
+  rounds show the answer arrow. Warlord win = +8 ink (`main.DUEL_REWARD`); loss = Keep −2 (never
   below 1). `Duel.resolve(won)` ends a duel instantly (tests). SFX names: `duel_windup`, `duel_swing`,
   `duel_clang`, `duel_whoosh`, `duel_dodge`, `duel_hit`, `duel_hurt`, `duel_stagger`.
   Test: `scenes/tests/duel_test.tscn` (real mouse swipes/taps/fold, one win and one loss).
+  Task #57 increases both bosses' duel endurance by 50% through the stagger threshold; the
+  finisher requires more damage, with the existing strike window, damage, hearts, attack timing,
+  rewards and map crush counts preserved.
   Weapon art `duel_<boss>_<axe|maul>.png` (head up) pivots around the fists listed in `Duel.HANDS`
   (per boss and pose, measured on the 300 px body); grip point + length in `Duel.WEAPON_ART`.
 
